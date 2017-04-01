@@ -1,0 +1,255 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<html>
+  <head>
+    
+    <style type="text/css">
+      .ident { color: #000099; }
+      .keyword { color: blue; }
+      .comment { color: green; }
+      .lexic { color:  #0099ff; }
+      .pattern {  text-shadow: 1px 1px 2px rgba(190, 190, 190, 1); }
+      .code { font-family: monospace; border-style: dotted; border-width: 1px; font-size: 100%; }
+      .const { color: #0099ff; }
+      .symbol { color: #0099ff; }
+      .column { width: 800px; text-align: justify; }
+    </style>
+    <meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+    <title>X</title>
+  </head>
+  
+<body lang="EN-US" link=blue vlink=purple>
+
+<div class="column">
+
+<h2>DSLs for building compilers</h2>
+    
+<p> Programming languages implementation is a well defined sequence of very
+specific stages. It may include parsing, followed by a chain of rewrites of an
+AST, interleaved with some analysis passes over the said AST, ending with a code
+generation, which may also be just a rewrite pass. It does not matter if a
+language is <i>domain specific</i>, a small macro extending somewhat a
+functionality of some host language, or a large standalone language - all follow
+the same simple pattern.
+
+<p> In order to simplify this process as much as possible it makes sense to use
+domain-specific languages for each distinct stage. Parsing DSLs are ubiqutous,
+but often all the consequent transformations are written in an ad hoc way and
+result in an unnecessarily complicated code.
+
+<p> Here we're presenting a small experimental language, <a
+href="https://github.com/combinatorylogic/mbase">PFront</a>, demonstrating this
+concept of a pervasive use of DSLs for constructing all stages of a compiler (or
+a language extension, a macro, a eDSL, etc.). It consists of the following eDSLs
+embedded into one simple extensible host language:
+
+<ul>
+<li> A parsing eDSL. Nothing really new here, besides it being very tightly
+integrated and allowing to implement an extensible syntax (thanks to PEG) and
+parser inheritance. A lot of useful parsing components are already defined and
+can can be reused.
+
+<li> A domain-specific type system for defining ASTs and infering visitors over
+  them. This is the key component, allowing to write compiler passes in a mostly
+  declarative way. E.g., if you want to walk over your AST and collect all the
+  identifiers, taking a lexical scope into account, you only have to mention the
+  identifier nodes and nodes introducing new scope (which affects the tree
+  traversing order), no need to write a huge recursive function going through
+  all possible nodes in this AST and no need to write a generic visitor for this
+  AST (remember, the order is not necessarily trivial).
+
+<li> A set of abstract, very generic IRs and predefined passes over them, useful
+  for exctracting an essence of your domain specific AST, doing some transforms
+  in an abstracted way and then reapplying the result back to your specific
+  AST. For example, there is a generic liveness IR that can be used for a
+  liveness analysis and a register allocation.
+
+  There is also a generic SSA IR, with a rich set of transformation and analysis
+  passes (think of LLVM, but without LL).
+
+<li> An embedded Prolog compiler, which is very useful for some compiler
+analysis passes and for implementing type systems seamlessly (especially the
+Hindley-Milner based ones).
+
+<li> Some minor bells and whistles that capture recurring patterns in compiler passes.
+
+<li> Built-in literate programming tools.
+</ul>
+
+<p>
+<i>Be warned. This language is a proof of concept only and not recommended for any
+production use. It's a hack upon a pile of hacks, glued by hacks and shit. The
+good news is that such a language is relatively trivial and anyone can implement
+a similar set of features on top of their host language of a choice.</i>
+
+<h2>Constructing a simple language</h2>
+
+<p>
+For example, a parser for a simple language looks like this:
+
+
+
+
+<p><div class='code'>
+<span class='keyword'>parser</span>&nbsp;<span class='ident'>calc</span>&nbsp;<span class='keyword'>(</span><span class='ident'>pfront</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>{</span>&nbsp;&nbsp;<span class='comment'>//&nbsp;Define&nbsp;a&nbsp;new&nbsp;parser,&nbsp;inheriting&nbsp;from&nbsp;the&nbsp;pfront&nbsp;syntax<br>
+</span>&nbsp;&nbsp;&nbsp;<span class='keyword'>!!</span><span class='ident'>Spaces</span><span class='keyword'>;</span>&nbsp;&nbsp;<span class='comment'>//&nbsp;Ignore&nbsp;the&nbsp;whitespace&nbsp;characters&nbsp;and&nbsp;comments<br>
+</span><br>
+&nbsp;&nbsp;&nbsp;<span class='comment'>//&nbsp;Syntax&nbsp;highlighting&nbsp;rules:<br>
+</span>&nbsp;&nbsp;&nbsp;<span class='keyword'>[</span><span class='ident'>lexical</span><span class='keyword'>:]</span>&nbsp;&#8656;&nbsp;<span class='pattern'><span class='keyword'>[lexical]</span></span>&nbsp;&#8658;&nbsp;<span class='keyword'>{</span><span class='ident'>ctoken</span>&nbsp;<span class='keyword'>=</span>&nbsp;<span class='ident'>lexic</span><span class='keyword'>};</span><br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>[</span><span class='ident'>keyword</span><span class='keyword'>:]</span>&nbsp;&#8656;&nbsp;<span class='pattern'><span class='keyword'>[keyword]</span></span>&nbsp;<span class='keyword'><span class='pattern'>![IdentRest]</span></span>&nbsp;&#8658;&nbsp;<span class='keyword'>{</span><span class='ident'>ctoken</span>&nbsp;<span class='keyword'>=</span>&nbsp;<span class='ident'>keyword</span><span class='keyword'>};</span><br>
+&nbsp;&nbsp;&nbsp;<br>
+&nbsp;&nbsp;&nbsp;<span class='ident'>calc</span>&nbsp;&#8656;&nbsp;<span class='keyword'><span class='pattern'>[calc0]:</span></span><span class='pattern'>c</span>&nbsp;<span class='keyword'><span class='pattern'>[Spaces]*</span></span>&nbsp;&#8658;&nbsp;<span class='ident'>c</span><span class='keyword'>;</span>&nbsp;<span class='comment'>//&nbsp;Toplevel&nbsp;entry&nbsp;parses&nbsp;a&nbsp;single&nbsp;calc0&nbsp;expression,<br>
+</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='comment'>//&nbsp;which&nbsp;may&nbsp;be&nbsp;trailed&nbsp;by&nbsp;some&nbsp;spaces.<br>
+</span>&nbsp;&nbsp;&nbsp;<span class='keyword'>binary</span>&nbsp;<span class='ident'>calc0</span>&nbsp;&#8656;&nbsp;&nbsp;<span class='comment'>//&nbsp;Define&nbsp;a&nbsp;binary&nbsp;expression&nbsp;parser&nbsp;(using&nbsp;Pratt&nbsp;algorithm)<br>
+</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>(</span><span class='const'>200</span><span class='keyword'>)</span>&nbsp;<span class='pattern'><span class='keyword'>[calc0]</span></span>&nbsp;<span class='pattern'><span class='const'>&quot;*&quot;</span></span>&nbsp;<span class='pattern'><span class='keyword'>[calc0]</span></span>&nbsp;&#8658;&nbsp;<span class='ident'>mult</span><span class='keyword'>(</span><span class='ident'>L</span><span class='keyword'>,</span><span class='ident'>R</span><span class='keyword'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='comment'>//&nbsp;Here,&nbsp;(200)&nbsp;is&nbsp;a&nbsp;priority,&nbsp;[calc0]&nbsp;is&nbsp;a&nbsp;recurisve&nbsp;reference&nbsp;to&nbsp;the&nbsp;same&nbsp;entry,<br>
+</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='comment'>//&nbsp;&quot;*&quot;&nbsp;is&nbsp;a&nbsp;literal,&nbsp;and&nbsp;'=&gt;&nbsp;mult(L,R)'&nbsp;is&nbsp;an&nbsp;AST&nbsp;constructor.<br>
+</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='comment'>//&nbsp;By&nbsp;default,&nbsp;left&nbsp;associativity&nbsp;is&nbsp;assumed.<br>
+</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>|</span>&nbsp;<span class='keyword'>(</span><span class='const'>200</span><span class='keyword'>)</span>&nbsp;<span class='pattern'><span class='keyword'>[calc0]</span></span>&nbsp;<span class='pattern'><span class='const'>&quot;/&quot;</span></span>&nbsp;<span class='pattern'><span class='keyword'>[calc0]</span></span>&nbsp;&#8658;&nbsp;<span class='ident'>div</span><span class='keyword'>(</span><span class='ident'>L</span><span class='keyword'>,</span><span class='ident'>R</span><span class='keyword'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>|</span>&nbsp;<span class='keyword'>(</span><span class='const'>100</span><span class='keyword'>)</span>&nbsp;<span class='pattern'><span class='keyword'>[calc0]</span></span>&nbsp;<span class='pattern'><span class='const'>&quot;+&quot;</span></span>&nbsp;<span class='pattern'><span class='keyword'>[calc0]</span></span>&nbsp;&#8658;&nbsp;<span class='ident'>plus</span><span class='keyword'>(</span><span class='ident'>L</span><span class='keyword'>,</span><span class='ident'>R</span><span class='keyword'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>|</span>&nbsp;<span class='keyword'>(</span><span class='const'>100</span><span class='keyword'>)</span>&nbsp;<span class='pattern'><span class='keyword'>[calc0]</span></span>&nbsp;<span class='pattern'><span class='const'>&quot;-&quot;</span></span>&nbsp;<span class='pattern'><span class='keyword'>[calc0]</span></span>&nbsp;&#8658;&nbsp;<span class='ident'>minus</span><span class='keyword'>(</span><span class='ident'>L</span><span class='keyword'>,</span><span class='ident'>R</span><span class='keyword'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>|</span>&nbsp;<span class='pattern'><span class='keyword'>[atom]</span></span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>;</span><br>
+&nbsp;&nbsp;&nbsp;<span class='comment'>//&nbsp;All&nbsp;the&nbsp;other&nbsp;nodes&nbsp;are&nbsp;parsed&nbsp;by&nbsp;Packrat&nbsp;and&nbsp;are&nbsp;defined&nbsp;with&nbsp;a&nbsp;PEG&nbsp;syntax&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<br>
+</span>&nbsp;&nbsp;&nbsp;<span class='ident'>atom</span>&nbsp;&#8656;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='pattern'><span class='const'>&quot;(&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[expr]:</span></span><span class='pattern'>e</span>&nbsp;<span class='pattern'><span class='const'>&quot;)&quot;</span></span>&nbsp;&#8658;&nbsp;<span class='ident'>e</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>/</span>&nbsp;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='const'><span class='pattern'>let</span></span>&nbsp;<span class='keyword'><span class='pattern'>[ident]:</span></span><span class='pattern'>nm</span>&nbsp;<span class='pattern'><span class='const'>&quot;=&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[calc]:</span></span><span class='pattern'>v</span>&nbsp;<span class='const'><span class='pattern'>in</span></span>&nbsp;<span class='keyword'><span class='pattern'>[calc]:</span></span><span class='pattern'>body</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&#8658;&nbsp;<span class='ident'>let</span><span class='keyword'>(</span><span class='ident'>nm</span><span class='keyword'>,</span>&nbsp;<span class='ident'>v</span><span class='keyword'>,</span>&nbsp;<span class='ident'>body</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>/</span>&nbsp;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='keyword'><span class='pattern'>[ident]:</span></span><span class='pattern'>nm</span>&nbsp;&#8658;&nbsp;<span class='ident'>var</span><span class='keyword'>(</span><span class='ident'>nm</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>/</span>&nbsp;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='keyword'><span class='pattern'>[double]:</span></span><span class='pattern'>v</span>&nbsp;&#8658;&nbsp;<span class='ident'>const</span><span class='keyword'>(</span><span class='ident'>v</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>;</span><br>
+<br>
+&nbsp;&nbsp;&nbsp;<span class='comment'>//&nbsp;This&nbsp;is&nbsp;a&nbsp;lexerless&nbsp;parsing,&nbsp;so&nbsp;&quot;tokens&quot;&nbsp;must&nbsp;be&nbsp;defined&nbsp;with&nbsp;the&nbsp;same&nbsp;PEG<br>
+</span>&nbsp;&nbsp;&nbsp;<span class='ident'>double</span>&nbsp;&#8656;&nbsp;<span class='keyword'><span class='pattern'>[tkdouble]:</span></span><span class='pattern'>v</span>&nbsp;&#8658;&nbsp;<span class='keyword'>{</span><span class='ident'>ctoken</span>&nbsp;<span class='keyword'>=</span>&nbsp;<span class='ident'>const</span><span class='keyword'>}</span>&nbsp;<span class='keyword'>$</span><span class='ident'>fval</span><span class='keyword'>(</span><span class='ident'>v</span><span class='keyword'>)</span><span class='keyword'>;</span><br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>@</span><span class='ident'>tkdouble</span>&nbsp;&#8656;&nbsp;<span class='keyword'><span class='pattern'>(</span></span><span class='const'><span class='pattern'>&quot;-&quot;</span></span><span class='keyword'><span class='pattern'>/</span></span><span class='const'><span class='pattern'>&quot;+&quot;</span></span><span class='keyword'><span class='pattern'>)?</span></span>&nbsp;<span class='keyword'><span class='pattern'>[Digit]+</span></span>&nbsp;<span class='keyword'><span class='pattern'>(</span></span><span class='const'><span class='pattern'>&quot;.&quot;</span></span><span class='pattern'>&nbsp;</span><span class='keyword'><span class='pattern'>[Digit]+)?</span></span><span class='keyword'>;</span><br>
+<span class='keyword'>}</span>
+<p></div>
+
+
+<p>A type declaration for the AST generated by this parser is following:
+
+
+<p><div class='code'>
+<span class='keyword'>ast</span>&nbsp;<span class='ident'>calc</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;<span class='ident'>expr</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>plus</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>a</span><span class='lexic'>,</span>&nbsp;<span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>minus</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>a</span><span class='lexic'>,</span>&nbsp;<span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>mult</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>a</span><span class='lexic'>,</span>&nbsp;<span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>div</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>a</span><span class='lexic'>,</span>&nbsp;<span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>let</span><span class='lexic'>(</span><span class='ident'>ident</span><span class='lexic'>:</span><span class='ident'>nm</span><span class='lexic'>,</span>&nbsp;<span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>val</span><span class='lexic'>,</span>&nbsp;<span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>body</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>var</span><span class='lexic'>(</span><span class='ident'>ident</span><span class='lexic'>:</span><span class='ident'>nm</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>const</span><span class='lexic'>(</span><span class='ident'>number</span><span class='lexic'>:</span><span class='ident'>v</span><span class='lexic'>);</span><br>
+<span class='lexic'>}</span>
+<p></div>
+
+
+<p>Now we can write an interpreter for this simple language:
+
+
+<p><div class='code'>
+<span id='Z384722'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_eval</span><span class='lexic'>(</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>e</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>calc</span>&nbsp;<span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>e</span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>once</span>&nbsp;<span class='ident'>expr</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>let</span>&nbsp;&#8594;&nbsp;<a href='#Z384722'><span class='ident'>calc_eval</span></a><span class='lexic'>([</span><span class='ident'>nm</span><span class='lexic'>;</span><a href='#Z384722'><span class='ident'>calc_eval</span></a><span class='lexic'>(</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>val</span><span class='lexic'>)]:</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>body</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='keyword'>deep</span>&nbsp;&#8594;&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>plus</span>&nbsp;&#8594;&nbsp;<span class='ident'>%f+</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>minus</span>&nbsp;&#8594;&nbsp;<span class='ident'>%f-</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>mult</span>&nbsp;&#8594;&nbsp;<span class='ident'>%f*</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>div</span>&nbsp;&#8594;&nbsp;<span class='ident'>%f/</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>const</span>&nbsp;&#8594;&nbsp;<span class='ident'>v</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>var</span>&nbsp;&#8594;&nbsp;<span class='ident'>%lookup-env-car</span><span class='lexic'>(</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>nm</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>else</span>&nbsp;&#8594;&nbsp;<span class='lexic'>&#8709;</span><span class='lexic'>}}}</span>
+<p></div>
+
+
+<p>This is an example of a visitor with a nontrivial traversal order. 'visit:calc'
+infers a visitor function for the 'calc' AST, starting with the 'expr' entry
+node. 'once expr' defines a rewrite pattern for a single tree node level,
+without going into sub-nodes. We need this because 'let' is introducing a new
+variable scope.  But, all the other nodes but 'let' can be traversed in a
+depth-first order, therefore they go under 'deep', and a recursive depth-first
+visitor is inferred here. We only had to add an explicit recursion for the 'let'
+nodes.
+
+<p>Writing a compiler for the same language is even easier (translating it to an
+underlying Lisp) - depth-first traversal is sufficient so we do not need any
+explicit recursion here at all:
+
+
+<p><div class='code'>
+<span id='Z385083'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_compile</span><span class='lexic'>(</span><span class='ident'>ex</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>calc</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span>&nbsp;<span class='ident'>ex</span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>deep</span>&nbsp;<span class='ident'>expr</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>const</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f#'</span><span class='lexic'>(</span><span class='ident'>%-&gt;s</span><span class='lexic'>(</span><span class='ident'>v</span><span class='lexic'>))</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>var</span>&nbsp;&#8594;&nbsp;<span class='ident'>nm</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>let</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'alet'</span><span class='lexic'>(</span><span class='ident'>nm</span><span class='lexic'>,</span>&nbsp;<span class='ident'>val</span><span class='lexic'>,</span>&nbsp;<span class='ident'>body</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>plus</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f+'</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>minus</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f-'</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>mult</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f*'</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>div</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f/'</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><span class='lexic'>}}</span>
+<p></div>
+
+
+<p>Compiling the same language into a stack machine (namely, .NET IR) is not much
+more difficult:
+
+
+<p><div class='code'>
+<span id='Z385440'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_compile_dotnet</span><span class='lexic'>(</span><span class='ident'>ex</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>calc</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>ex</span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>deep</span>&nbsp;<span class='ident'>expr</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>const</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='symbol'>'Ldc_R8'</span><span class='lexic'>(</span><span class='ident'>v</span><span class='lexic'>)]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>var</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='symbol'>'Ldloc'</span><span class='lexic'>(</span><span class='symbol'>'var'</span><span class='lexic'>(</span><span class='ident'>nm</span><span class='lexic'>))]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>let</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='symbol'>'local'</span><span class='lexic'>(</span><span class='ident'>nm</span><span class='lexic'>,</span>&nbsp;<span class='ident'>t_Double</span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>@</span><span class='ident'>val</span><span class='lexic'>;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='symbol'>'Stloc'</span><span class='lexic'>(</span><span class='symbol'>'var'</span><span class='lexic'>(</span><span class='ident'>nm</span><span class='lexic'>));</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>@</span><span class='ident'>body</span><span class='lexic'>]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>plus</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[@</span><span class='ident'>a</span><span class='lexic'>;@</span><span class='ident'>b</span><span class='lexic'>;</span><span class='symbol'>'Add'</span><span class='lexic'>()]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>minus</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[@</span><span class='ident'>a</span><span class='lexic'>;@</span><span class='ident'>b</span><span class='lexic'>;</span><span class='symbol'>'Sub'</span><span class='lexic'>()]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>mult</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[@</span><span class='ident'>a</span><span class='lexic'>;@</span><span class='ident'>b</span><span class='lexic'>;</span><span class='symbol'>'Mul'</span><span class='lexic'>()]</span><br>
+&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>div</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[@</span><span class='ident'>a</span><span class='lexic'>;@</span><span class='ident'>b</span><span class='lexic'>;</span><span class='symbol'>'Div'</span><span class='lexic'>()]</span><span class='lexic'>}}</span>
+<p></div>
+
+
+
+<p>And, it's trivial to embed this compiler staight into PFront itself, using its
+extensible syntax:
+
+
+<p><div class='code'>
+<span class='keyword'>syntax</span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='ident'>expr</span><span class='lexic'>,</span>&nbsp;<span class='ident'>start</span>&nbsp;<span class='lexic'>(</span><span class='ident'>calc</span><span class='lexic'>):</span>&nbsp;'&nbsp;<span class='const'><span class='pattern'>&quot;calcnet:&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[calc]:</span></span><span class='pattern'>c</span>&nbsp;'<br>
+&nbsp;&nbsp;<span class='lexic'>{</span>&nbsp;<span class='keyword'>return</span>&nbsp;<span class='symbol'>'lisp'</span><span class='lexic'>(</span><span class='symbol'>'n.asm'</span><span class='lexic'>(</span><span class='lexic'>&#8709;</span><span class='lexic'>,@</span><a href='#Z385440'><span class='ident'>calc_compile_dotnet</span></a><span class='lexic'>(</span><span class='ident'>c</span><span class='lexic'>),</span><span class='symbol'>'Box'</span><span class='lexic'>(</span><span class='ident'>t_Double</span><span class='lexic'>)))</span>&nbsp;<span class='lexic'>}</span>
+<p></div>
+
+
+<p>Or, for an immediate interpretation:
+
+
+<p><div class='code'>
+<span class='keyword'>syntax</span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='ident'>expr</span><span class='lexic'>,</span>&nbsp;<span class='ident'>start</span>&nbsp;<span class='lexic'>(</span><span class='ident'>calc</span><span class='lexic'>):</span>&nbsp;'&nbsp;<span class='const'><span class='pattern'>&quot;calc:&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[calc]:</span></span><span class='pattern'>c</span>&nbsp;'<br>
+&nbsp;&nbsp;<span class='lexic'>{</span>&nbsp;<span class='keyword'>return</span>&nbsp;<span class='symbol'>'lisp'</span><span class='lexic'>(</span><span class='ident'>%S&lt;&lt;</span><span class='lexic'>(</span><a href='#Z384722'><span class='ident'>calc_eval</span></a><span class='lexic'>(</span><span class='lexic'>&#8709;</span><span class='lexic'>,</span><span class='ident'>c</span><span class='lexic'>)))</span>&nbsp;<span class='lexic'>}</span>
+<p></div>
+
+
+
+<p>And this new syntax can be used straight away, in the same source file, even with syntax highlighing working out of the box:
+
+
+<p><div class='code'>
+<span class='ident'>writeline</span><span class='lexic'>(calcnet:</span>&nbsp;<span class='keyword'>let</span>&nbsp;<span class='ident'>x</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='const'>2</span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='const'>2</span><span class='lexic'>*</span><span class='const'>2</span><span class='lexic'>+</span><span class='ident'>x</span><span class='lexic'>*</span><span class='const'>3</span><span class='lexic'>)</span>
+<p></div>
+
+
+<p>Of course, the language we just implemented is extremely trivial, and
+compilation consists of one stage only, so the example above is not very
+convincing. In a more realistic scenario there must be a long chain of
+transformations, with multiple different (often just slightly different)
+ASTs. And this is exactly what PFront is designed for.
+
+<p>You can see a more complex language implementation (a C-like language translated
+to LLVM directly or an own LLVM-like IR) here:
+<a href="https://github.com/combinatorylogic/clike">https://github.com/combinatorylogic/clike</a>
+
+</div>
+
+</body>
+
+</html>
+
