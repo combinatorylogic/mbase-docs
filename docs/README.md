@@ -16,4 +16,5 @@ Generic SSA library literate code:
 Embedded Prolog compiler:
    [prologdoc.pdf](https://combinatorylogic.github.io/mbase-docs/prologdoc.pdf)
 
-
+CLike compiler:
+   [clike.pdf](https://combinatorylogic.github.io/mbase-docs/clike.pdf)

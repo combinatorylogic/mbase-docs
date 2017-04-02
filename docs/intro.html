@@ -12,9 +12,23 @@
       .const { color: #0099ff; }
       .symbol { color: #0099ff; }
       .column { width: 800px; text-align: justify; }
+
+      .withhint { position: relative; }
+      .hint { display: none; }
+      
+      .withhint:hover .hint {
+        display: block;
+        position: absolute;
+        bottom: 1em;
+        padding: 0.5em;
+        color: #000000;
+        background: #ebf4fb;
+        border: 0.1em solid #b7ddf2;
+        border-radius: 0.5em;
+      }
     </style>
     <meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
-    <title>X</title>
+    <title>DSLs for building compilers</title>
   </head>
   
 <body lang="EN-US" link=blue vlink=purple>
@@ -144,15 +158,19 @@ For example, a parser for a simple language looks like this:
 
 
 <p><div class='code'>
-<span id='Z384722'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_eval</span><span class='lexic'>(</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>e</span><span class='lexic'>)</span><br>
+<span id='Z385104'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_eval</span><span class='lexic'>(</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>e</span><span class='lexic'>)</span><br>
 &nbsp;&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>calc</span>&nbsp;<span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>e</span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>once</span>&nbsp;<span class='ident'>expr</span>&nbsp;<span class='lexic'>{</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>let</span>&nbsp;&#8594;&nbsp;<a href='#Z384722'><span class='ident'>calc_eval</span></a><span class='lexic'>([</span><span class='ident'>nm</span><span class='lexic'>;</span><a href='#Z384722'><span class='ident'>calc_eval</span></a><span class='lexic'>(</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>val</span><span class='lexic'>)]:</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>body</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>let</span>&nbsp;&#8594;&nbsp;<a href='#Z385104'><span class='ident'>calc_eval</span></a><span class='lexic'>([</span><span class='ident'>nm</span><span class='lexic'>;</span><a href='#Z385104'><span class='ident'>calc_eval</span></a><span class='lexic'>(</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>val</span><span class='lexic'>)]:</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>body</span><span class='lexic'>)</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='keyword'>deep</span>&nbsp;&#8594;&nbsp;<span class='lexic'>{</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>plus</span>&nbsp;&#8594;&nbsp;<span class='ident'>%f+</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>minus</span>&nbsp;&#8594;&nbsp;<span class='ident'>%f-</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>mult</span>&nbsp;&#8594;&nbsp;<span class='ident'>%f*</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>div</span>&nbsp;&#8594;&nbsp;<span class='ident'>%f/</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>plus</span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='ident'>%f+</span><span class='hint'>function&nbsp;f+&nbsp;a,&nbsp;b:&nbsp;<br>
+(&quot;Floating&nbsp;point&nbsp;Add&quot;)</span></span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>minus</span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='ident'>%f-</span><span class='hint'>function&nbsp;f-&nbsp;a,&nbsp;b:&nbsp;<br>
+(&quot;Floating&nbsp;point&nbsp;Sub&quot;)</span></span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>mult</span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='ident'>%f*</span><span class='hint'>function&nbsp;f*&nbsp;a,&nbsp;b:&nbsp;<br>
+(&quot;Floating&nbsp;point&nbsp;Mul&quot;)</span></span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>div</span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='ident'>%f/</span><span class='hint'>function&nbsp;f/&nbsp;a,&nbsp;b:&nbsp;<br>
+(&quot;Floating&nbsp;point&nbsp;Div&quot;)</span></span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>const</span>&nbsp;&#8594;&nbsp;<span class='ident'>v</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>var</span>&nbsp;&#8594;&nbsp;<span class='ident'>%lookup-env-car</span><span class='lexic'>(</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>nm</span><span class='lexic'>)</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>else</span>&nbsp;&#8594;&nbsp;<span class='lexic'>&#8709;</span><span class='lexic'>}}}</span>
@@ -174,10 +192,11 @@ explicit recursion here at all:
 
 
 <p><div class='code'>
-<span id='Z385083'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_compile</span><span class='lexic'>(</span><span class='ident'>ex</span><span class='lexic'>)</span><br>
+<span id='Z385469'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_compile</span><span class='lexic'>(</span><span class='ident'>ex</span><span class='lexic'>)</span><br>
 &nbsp;&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>calc</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span>&nbsp;<span class='ident'>ex</span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>deep</span>&nbsp;<span class='ident'>expr</span>&nbsp;<span class='lexic'>{</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>const</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f#'</span><span class='lexic'>(</span><span class='ident'>%-&gt;s</span><span class='lexic'>(</span><span class='ident'>v</span><span class='lexic'>))</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>const</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f#'</span><span class='lexic'>(</span><span class='withhint'><span class='ident'>%-&gt;s</span><span class='hint'>function&nbsp;-&gt;s&nbsp;o:&nbsp;<br>
+(&quot;Calls&nbsp;the&nbsp;[ToString]&nbsp;method&nbsp;of&nbsp;[o].&quot;)</span></span><span class='lexic'>(</span><span class='ident'>v</span><span class='lexic'>))</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>var</span>&nbsp;&#8594;&nbsp;<span class='ident'>nm</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>let</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'alet'</span><span class='lexic'>(</span><span class='ident'>nm</span><span class='lexic'>,</span>&nbsp;<span class='ident'>val</span><span class='lexic'>,</span>&nbsp;<span class='ident'>body</span><span class='lexic'>)</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>plus</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f+'</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
@@ -192,7 +211,7 @@ more difficult:
 
 
 <p><div class='code'>
-<span id='Z385440'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_compile_dotnet</span><span class='lexic'>(</span><span class='ident'>ex</span><span class='lexic'>)</span><br>
+<span id='Z385827'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_compile_dotnet</span><span class='lexic'>(</span><span class='ident'>ex</span><span class='lexic'>)</span><br>
 &nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>calc</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>ex</span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>deep</span>&nbsp;<span class='ident'>expr</span>&nbsp;<span class='lexic'>{</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>const</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='symbol'>'Ldc_R8'</span><span class='lexic'>(</span><span class='ident'>v</span><span class='lexic'>)]</span><br>
@@ -215,7 +234,7 @@ extensible syntax:
 
 <p><div class='code'>
 <span class='keyword'>syntax</span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='ident'>expr</span><span class='lexic'>,</span>&nbsp;<span class='ident'>start</span>&nbsp;<span class='lexic'>(</span><span class='ident'>calc</span><span class='lexic'>):</span>&nbsp;'&nbsp;<span class='const'><span class='pattern'>&quot;calcnet:&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[calc]:</span></span><span class='pattern'>c</span>&nbsp;'<br>
-&nbsp;&nbsp;<span class='lexic'>{</span>&nbsp;<span class='keyword'>return</span>&nbsp;<span class='symbol'>'lisp'</span><span class='lexic'>(</span><span class='symbol'>'n.asm'</span><span class='lexic'>(</span><span class='lexic'>&#8709;</span><span class='lexic'>,@</span><a href='#Z385440'><span class='ident'>calc_compile_dotnet</span></a><span class='lexic'>(</span><span class='ident'>c</span><span class='lexic'>),</span><span class='symbol'>'Box'</span><span class='lexic'>(</span><span class='ident'>t_Double</span><span class='lexic'>)))</span>&nbsp;<span class='lexic'>}</span>
+&nbsp;&nbsp;<span class='lexic'>{</span>&nbsp;<span class='keyword'>return</span>&nbsp;<span class='symbol'>'lisp'</span><span class='lexic'>(</span><span class='symbol'>'n.asm'</span><span class='lexic'>(</span><span class='lexic'>&#8709;</span><span class='lexic'>,@</span><a href='#Z385827'><span class='ident'>calc_compile_dotnet</span></a><span class='lexic'>(</span><span class='ident'>c</span><span class='lexic'>),</span><span class='symbol'>'Box'</span><span class='lexic'>(</span><span class='ident'>t_Double</span><span class='lexic'>)))</span>&nbsp;<span class='lexic'>}</span>
 <p></div>
 
 
@@ -224,7 +243,8 @@ extensible syntax:
 
 <p><div class='code'>
 <span class='keyword'>syntax</span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='ident'>expr</span><span class='lexic'>,</span>&nbsp;<span class='ident'>start</span>&nbsp;<span class='lexic'>(</span><span class='ident'>calc</span><span class='lexic'>):</span>&nbsp;'&nbsp;<span class='const'><span class='pattern'>&quot;calc:&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[calc]:</span></span><span class='pattern'>c</span>&nbsp;'<br>
-&nbsp;&nbsp;<span class='lexic'>{</span>&nbsp;<span class='keyword'>return</span>&nbsp;<span class='symbol'>'lisp'</span><span class='lexic'>(</span><span class='ident'>%S&lt;&lt;</span><span class='lexic'>(</span><a href='#Z384722'><span class='ident'>calc_eval</span></a><span class='lexic'>(</span><span class='lexic'>&#8709;</span><span class='lexic'>,</span><span class='ident'>c</span><span class='lexic'>)))</span>&nbsp;<span class='lexic'>}</span>
+&nbsp;&nbsp;<span class='lexic'>{</span>&nbsp;<span class='keyword'>return</span>&nbsp;<span class='symbol'>'lisp'</span><span class='lexic'>(</span><span class='withhint'><span class='ident'>%S&lt;&lt;</span><span class='hint'>macro&nbsp;S&lt;&lt;&nbsp;args:&nbsp;<br>
+(&quot;A&nbsp;short&nbsp;form&nbsp;for&nbsp;[(buildstring&nbsp;...)]&quot;)</span></span><span class='lexic'>(</span><a href='#Z385104'><span class='ident'>calc_eval</span></a><span class='lexic'>(</span><span class='lexic'>&#8709;</span><span class='lexic'>,</span><span class='ident'>c</span><span class='lexic'>)))</span>&nbsp;<span class='lexic'>}</span>
 <p></div>
 
 
@@ -233,7 +253,8 @@ extensible syntax:
 
 
 <p><div class='code'>
-<span class='ident'>writeline</span><span class='lexic'>(calcnet:</span>&nbsp;<span class='keyword'>let</span>&nbsp;<span class='ident'>x</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='const'>2</span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='const'>2</span><span class='lexic'>*</span><span class='const'>2</span><span class='lexic'>+</span><span class='ident'>x</span><span class='lexic'>*</span><span class='const'>3</span><span class='lexic'>)</span>
+<span class='withhint'><span class='ident'>writeline</span><span class='hint'>macro&nbsp;writeline&nbsp;args:&nbsp;<br>
+(&quot;Prints&nbsp;a&nbsp;string&nbsp;of&nbsp;arguments&nbsp;into&nbsp;a&nbsp;standard&nbsp;output,&quot;&nbsp;&quot;using&nbsp;the&nbsp;[to-string]&nbsp;function&nbsp;to&nbsp;print&nbsp;each&nbsp;value.&quot;)</span></span><span class='lexic'>(calcnet:</span>&nbsp;<span class='keyword'>let</span>&nbsp;<span class='ident'>x</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='const'>2</span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='const'>2</span><span class='lexic'>*</span><span class='const'>2</span><span class='lexic'>+</span><span class='ident'>x</span><span class='lexic'>*</span><span class='const'>3</span><span class='lexic'>)</span>
 <p></div>
 
 
