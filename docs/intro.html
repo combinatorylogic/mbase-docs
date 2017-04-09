@@ -1,39 +1,19 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
 <html>
   <head>
-    
-    <style type="text/css">
-      .ident { color: #000099; }
-      .keyword { color: blue; }
-      .comment { color: green; }
-      .lexic { color:  #0099ff; }
-      .pattern {  text-shadow: 1px 1px 2px rgba(190, 190, 190, 1); }
-      .code { font-family: monospace; border-style: dotted; border-width: 1px; font-size: 100%; }
-      .const { color: #0099ff; }
-      .symbol { color: #0099ff; }
-      .column { width: 800px; text-align: justify; }
+    <script src="scripts.js" type="text/javascript"></script>
+    <script src="scripts1.js" type="text/javascript"></script>
+    <link rel="stylesheet" href="stylesheets.css" type="text/css">
 
-      .withhint { position: relative; }
-      .hint { display: none; }
-      
-      .withhint:hover .hint {
-        display: block;
-        position: absolute;
-        bottom: 1em;
-        padding: 0.5em;
-        color: #000000;
-        background: #ebf4fb;
-        border: 0.1em solid #b7ddf2;
-        border-radius: 0.5em;
-      }
-    </style>
     <meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
-    <title>DSLs for building compilers</title>
+    <title>Literate output</title>
   </head>
   
-<body lang="EN-US" link=blue vlink=purple>
+<body lang="EN-GB" link=blue vlink=purple>
 
 <div class="column">
+
+
 
 <h2>DSLs for building compilers</h2>
     
@@ -158,22 +138,22 @@ For example, a parser for a simple language looks like this:
 
 
 <p><div class='code'>
-<span id='Z385104'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_eval</span><span class='lexic'>(</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>e</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>calc</span>&nbsp;<span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>e</span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+<span id='Z389558'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_eval</span><span class='lexic'>(</span><span id='Z389688'><span><span class='ident'>env</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z389833'><span><span class='ident'>e</span></span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>calc</span>&nbsp;<span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='idfrom' onmouseenter='srcref_over("Z389833",this)' onmouseleave='srcref_leave("Z389833",this)'><span><span class='ident'>e</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>once</span>&nbsp;<span class='ident'>expr</span>&nbsp;<span class='lexic'>{</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>let</span>&nbsp;&#8594;&nbsp;<a href='#Z385104'><span class='ident'>calc_eval</span></a><span class='lexic'>([</span><span class='ident'>nm</span><span class='lexic'>;</span><a href='#Z385104'><span class='ident'>calc_eval</span></a><span class='lexic'>(</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>val</span><span class='lexic'>)]:</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>body</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z389685'><span><span class='ident'>let</span></span></span>&nbsp;&#8594;&nbsp;<a href='#Z389558'><span class='ident'>calc_eval</span></a><span class='lexic'>([</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z389685",this)' onmouseleave='srcref_leave("Z389685",this)'><span><span class='ident'>nm</span></span></span><span class='hint'>let(nm,val,body)</span></span><span class='lexic'>;</span><a href='#Z389558'><span class='ident'>calc_eval</span></a><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z389688",this)' onmouseleave='srcref_leave("Z389688",this)'><span><span class='ident'>env</span></span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z389685",this)' onmouseleave='srcref_leave("Z389685",this)'><span><span class='ident'>val</span></span></span><span class='hint'>let(nm,val,body)</span></span><span class='lexic'>)]:</span><span class='idfrom' onmouseenter='srcref_over("Z389688",this)' onmouseleave='srcref_leave("Z389688",this)'><span><span class='ident'>env</span></span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z389685",this)' onmouseleave='srcref_leave("Z389685",this)'><span><span class='ident'>body</span></span></span><span class='hint'>let(nm,val,body)</span></span><span class='lexic'>)</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='keyword'>deep</span>&nbsp;&#8594;&nbsp;<span class='lexic'>{</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>plus</span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='ident'>%f+</span><span class='hint'>function&nbsp;f+&nbsp;a,&nbsp;b:&nbsp;<br>
-(&quot;Floating&nbsp;point&nbsp;Add&quot;)</span></span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>minus</span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='ident'>%f-</span><span class='hint'>function&nbsp;f-&nbsp;a,&nbsp;b:&nbsp;<br>
-(&quot;Floating&nbsp;point&nbsp;Sub&quot;)</span></span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>mult</span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='ident'>%f*</span><span class='hint'>function&nbsp;f*&nbsp;a,&nbsp;b:&nbsp;<br>
-(&quot;Floating&nbsp;point&nbsp;Mul&quot;)</span></span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>div</span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='ident'>%f/</span><span class='hint'>function&nbsp;f/&nbsp;a,&nbsp;b:&nbsp;<br>
-(&quot;Floating&nbsp;point&nbsp;Div&quot;)</span></span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>const</span>&nbsp;&#8594;&nbsp;<span class='ident'>v</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>var</span>&nbsp;&#8594;&nbsp;<span class='ident'>%lookup-env-car</span><span class='lexic'>(</span><span class='ident'>env</span><span class='lexic'>,</span>&nbsp;<span class='ident'>nm</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>else</span>&nbsp;&#8594;&nbsp;<span class='lexic'>&#8709;</span><span class='lexic'>}}}</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z389703'><span><span class='ident'>plus</span></span></span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='ident'>%f+</span><span class='hint'>function&nbsp;f+&nbsp;a,&nbsp;b:&nbsp;<br>
+Floating&nbsp;point&nbsp;Add</span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z389703",this)' onmouseleave='srcref_leave("Z389703",this)'><span><span class='ident'>a</span></span></span><span class='hint'>plus(a,b)</span></span><span class='lexic'>,</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z389703",this)' onmouseleave='srcref_leave("Z389703",this)'><span><span class='ident'>b</span></span></span><span class='hint'>plus(a,b)</span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z389715'><span><span class='ident'>minus</span></span></span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='ident'>%f-</span><span class='hint'>function&nbsp;f-&nbsp;a,&nbsp;b:&nbsp;<br>
+Floating&nbsp;point&nbsp;Sub</span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z389715",this)' onmouseleave='srcref_leave("Z389715",this)'><span><span class='ident'>a</span></span></span><span class='hint'>minus(a,b)</span></span><span class='lexic'>,</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z389715",this)' onmouseleave='srcref_leave("Z389715",this)'><span><span class='ident'>b</span></span></span><span class='hint'>minus(a,b)</span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z389727'><span><span class='ident'>mult</span></span></span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='ident'>%f*</span><span class='hint'>function&nbsp;f*&nbsp;a,&nbsp;b:&nbsp;<br>
+Floating&nbsp;point&nbsp;Mul</span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z389727",this)' onmouseleave='srcref_leave("Z389727",this)'><span><span class='ident'>a</span></span></span><span class='hint'>mult(a,b)</span></span><span class='lexic'>,</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z389727",this)' onmouseleave='srcref_leave("Z389727",this)'><span><span class='ident'>b</span></span></span><span class='hint'>mult(a,b)</span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z389739'><span><span class='ident'>div</span></span></span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='ident'>%f/</span><span class='hint'>function&nbsp;f/&nbsp;a,&nbsp;b:&nbsp;<br>
+Floating&nbsp;point&nbsp;Div</span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z389739",this)' onmouseleave='srcref_leave("Z389739",this)'><span><span class='ident'>a</span></span></span><span class='hint'>div(a,b)</span></span><span class='lexic'>,</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z389739",this)' onmouseleave='srcref_leave("Z389739",this)'><span><span class='ident'>b</span></span></span><span class='hint'>div(a,b)</span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z389748'><span><span class='ident'>const</span></span></span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z389748",this)' onmouseleave='srcref_leave("Z389748",this)'><span><span class='ident'>v</span></span></span><span class='hint'>const(v)</span></span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z389755'><span><span class='ident'>var</span></span></span>&nbsp;&#8594;&nbsp;<span class='ident'>%lookup-env-car</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z389688",this)' onmouseleave='srcref_leave("Z389688",this)'><span><span class='ident'>env</span></span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z389755",this)' onmouseleave='srcref_leave("Z389755",this)'><span><span class='ident'>nm</span></span></span><span class='hint'>var(nm)</span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='keyword'>else</span>&nbsp;&#8594;&nbsp;<span class='lexic'>&#8709;</span><span class='lexic'>}}}</span>
 <p></div>
 
 
@@ -192,17 +172,17 @@ explicit recursion here at all:
 
 
 <p><div class='code'>
-<span id='Z385469'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_compile</span><span class='lexic'>(</span><span class='ident'>ex</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>calc</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span>&nbsp;<span class='ident'>ex</span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+<span id='Z389958'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_compile</span><span class='lexic'>(</span><span id='Z390221'><span><span class='ident'>ex</span></span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>calc</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z390221",this)' onmouseleave='srcref_leave("Z390221",this)'><span><span class='ident'>ex</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>deep</span>&nbsp;<span class='ident'>expr</span>&nbsp;<span class='lexic'>{</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>const</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f#'</span><span class='lexic'>(</span><span class='withhint'><span class='ident'>%-&gt;s</span><span class='hint'>function&nbsp;-&gt;s&nbsp;o:&nbsp;<br>
-(&quot;Calls&nbsp;the&nbsp;[ToString]&nbsp;method&nbsp;of&nbsp;[o].&quot;)</span></span><span class='lexic'>(</span><span class='ident'>v</span><span class='lexic'>))</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>var</span>&nbsp;&#8594;&nbsp;<span class='ident'>nm</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>let</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'alet'</span><span class='lexic'>(</span><span class='ident'>nm</span><span class='lexic'>,</span>&nbsp;<span class='ident'>val</span><span class='lexic'>,</span>&nbsp;<span class='ident'>body</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>plus</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f+'</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>minus</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f-'</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>mult</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f*'</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>div</span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f/'</span><span class='lexic'>(</span><span class='ident'>a</span><span class='lexic'>,</span><span class='ident'>b</span><span class='lexic'>)</span><span class='lexic'>}}</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z390077'><span><span class='ident'>const</span></span></span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f#'</span><span class='lexic'>(</span><span class='withhint'><span class='ident'>%-&gt;s</span><span class='hint'>function&nbsp;-&gt;s&nbsp;o:&nbsp;<br>
+Calls&nbsp;the&nbsp;[ToString]&nbsp;method&nbsp;of&nbsp;[o].</span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390077",this)' onmouseleave='srcref_leave("Z390077",this)'><span><span class='ident'>v</span></span></span><span class='hint'>const(v)</span></span><span class='lexic'>))</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z390084'><span><span class='ident'>var</span></span></span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390084",this)' onmouseleave='srcref_leave("Z390084",this)'><span><span class='ident'>nm</span></span></span><span class='hint'>var(nm)</span></span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z390095'><span><span class='ident'>let</span></span></span>&nbsp;&#8594;&nbsp;<span class='symbol'>'alet'</span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390095",this)' onmouseleave='srcref_leave("Z390095",this)'><span><span class='ident'>nm</span></span></span><span class='hint'>let(nm,val,body)</span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390095",this)' onmouseleave='srcref_leave("Z390095",this)'><span><span class='ident'>val</span></span></span><span class='hint'>let(nm,val,body)</span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390095",this)' onmouseleave='srcref_leave("Z390095",this)'><span><span class='ident'>body</span></span></span><span class='hint'>let(nm,val,body)</span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z390108'><span><span class='ident'>plus</span></span></span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f+'</span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390108",this)' onmouseleave='srcref_leave("Z390108",this)'><span><span class='ident'>a</span></span></span><span class='hint'>plus(a,b)</span></span><span class='lexic'>,</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390108",this)' onmouseleave='srcref_leave("Z390108",this)'><span><span class='ident'>b</span></span></span><span class='hint'>plus(a,b)</span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z390119'><span><span class='ident'>minus</span></span></span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f-'</span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390119",this)' onmouseleave='srcref_leave("Z390119",this)'><span><span class='ident'>a</span></span></span><span class='hint'>minus(a,b)</span></span><span class='lexic'>,</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390119",this)' onmouseleave='srcref_leave("Z390119",this)'><span><span class='ident'>b</span></span></span><span class='hint'>minus(a,b)</span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z390130'><span><span class='ident'>mult</span></span></span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f*'</span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390130",this)' onmouseleave='srcref_leave("Z390130",this)'><span><span class='ident'>a</span></span></span><span class='hint'>mult(a,b)</span></span><span class='lexic'>,</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390130",this)' onmouseleave='srcref_leave("Z390130",this)'><span><span class='ident'>b</span></span></span><span class='hint'>mult(a,b)</span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z390141'><span><span class='ident'>div</span></span></span>&nbsp;&#8594;&nbsp;<span class='symbol'>'f/'</span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390141",this)' onmouseleave='srcref_leave("Z390141",this)'><span><span class='ident'>a</span></span></span><span class='hint'>div(a,b)</span></span><span class='lexic'>,</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390141",this)' onmouseleave='srcref_leave("Z390141",this)'><span><span class='ident'>b</span></span></span><span class='hint'>div(a,b)</span></span><span class='lexic'>)</span><span class='lexic'>}}</span>
 <p></div>
 
 
@@ -211,19 +191,19 @@ more difficult:
 
 
 <p><div class='code'>
-<span id='Z385827'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_compile_dotnet</span><span class='lexic'>(</span><span class='ident'>ex</span><span class='lexic'>)</span><br>
-&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>calc</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>ex</span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+<span id='Z390350'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>calc_compile_dotnet</span><span class='lexic'>(</span><span id='Z390614'><span><span class='ident'>ex</span></span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>calc</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='idfrom' onmouseenter='srcref_over("Z390614",this)' onmouseleave='srcref_leave("Z390614",this)'><span><span class='ident'>ex</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
 &nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>deep</span>&nbsp;<span class='ident'>expr</span>&nbsp;<span class='lexic'>{</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>const</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='symbol'>'Ldc_R8'</span><span class='lexic'>(</span><span class='ident'>v</span><span class='lexic'>)]</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>var</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='symbol'>'Ldloc'</span><span class='lexic'>(</span><span class='symbol'>'var'</span><span class='lexic'>(</span><span class='ident'>nm</span><span class='lexic'>))]</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>let</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='symbol'>'local'</span><span class='lexic'>(</span><span class='ident'>nm</span><span class='lexic'>,</span>&nbsp;<span class='ident'>t_Double</span><span class='lexic'>);</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>@</span><span class='ident'>val</span><span class='lexic'>;</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='symbol'>'Stloc'</span><span class='lexic'>(</span><span class='symbol'>'var'</span><span class='lexic'>(</span><span class='ident'>nm</span><span class='lexic'>));</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>@</span><span class='ident'>body</span><span class='lexic'>]</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>plus</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[@</span><span class='ident'>a</span><span class='lexic'>;@</span><span class='ident'>b</span><span class='lexic'>;</span><span class='symbol'>'Add'</span><span class='lexic'>()]</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>minus</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[@</span><span class='ident'>a</span><span class='lexic'>;@</span><span class='ident'>b</span><span class='lexic'>;</span><span class='symbol'>'Sub'</span><span class='lexic'>()]</span><br>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>mult</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[@</span><span class='ident'>a</span><span class='lexic'>;@</span><span class='ident'>b</span><span class='lexic'>;</span><span class='symbol'>'Mul'</span><span class='lexic'>()]</span><br>
-&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>div</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[@</span><span class='ident'>a</span><span class='lexic'>;@</span><span class='ident'>b</span><span class='lexic'>;</span><span class='symbol'>'Div'</span><span class='lexic'>()]</span><span class='lexic'>}}</span>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z390468'><span><span class='ident'>const</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='symbol'>'Ldc_R8'</span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390468",this)' onmouseleave='srcref_leave("Z390468",this)'><span><span class='ident'>v</span></span></span><span class='hint'>const(v)</span></span><span class='lexic'>)]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z390475'><span><span class='ident'>var</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='symbol'>'Ldloc'</span><span class='lexic'>(</span><span class='symbol'>'var'</span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390475",this)' onmouseleave='srcref_leave("Z390475",this)'><span><span class='ident'>nm</span></span></span><span class='hint'>var(nm)</span></span><span class='lexic'>))]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z390486'><span><span class='ident'>let</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='symbol'>'local'</span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390486",this)' onmouseleave='srcref_leave("Z390486",this)'><span><span class='ident'>nm</span></span></span><span class='hint'>let(nm,val,body)</span></span><span class='lexic'>,</span>&nbsp;<span class='ident'>t_Double</span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>@</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390486",this)' onmouseleave='srcref_leave("Z390486",this)'><span><span class='ident'>val</span></span></span><span class='hint'>let(nm,val,body)</span></span><span class='lexic'>;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='symbol'>'Stloc'</span><span class='lexic'>(</span><span class='symbol'>'var'</span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390486",this)' onmouseleave='srcref_leave("Z390486",this)'><span><span class='ident'>nm</span></span></span><span class='hint'>let(nm,val,body)</span></span><span class='lexic'>));</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>@</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390486",this)' onmouseleave='srcref_leave("Z390486",this)'><span><span class='ident'>body</span></span></span><span class='hint'>let(nm,val,body)</span></span><span class='lexic'>]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z390501'><span><span class='ident'>plus</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>[@</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390501",this)' onmouseleave='srcref_leave("Z390501",this)'><span><span class='ident'>a</span></span></span><span class='hint'>plus(a,b)</span></span><span class='lexic'>;@</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390501",this)' onmouseleave='srcref_leave("Z390501",this)'><span><span class='ident'>b</span></span></span><span class='hint'>plus(a,b)</span></span><span class='lexic'>;</span><span class='symbol'>'Add'</span><span class='lexic'>()]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z390512'><span><span class='ident'>minus</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>[@</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390512",this)' onmouseleave='srcref_leave("Z390512",this)'><span><span class='ident'>a</span></span></span><span class='hint'>minus(a,b)</span></span><span class='lexic'>;@</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390512",this)' onmouseleave='srcref_leave("Z390512",this)'><span><span class='ident'>b</span></span></span><span class='hint'>minus(a,b)</span></span><span class='lexic'>;</span><span class='symbol'>'Sub'</span><span class='lexic'>()]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z390523'><span><span class='ident'>mult</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>[@</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390523",this)' onmouseleave='srcref_leave("Z390523",this)'><span><span class='ident'>a</span></span></span><span class='hint'>mult(a,b)</span></span><span class='lexic'>;@</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390523",this)' onmouseleave='srcref_leave("Z390523",this)'><span><span class='ident'>b</span></span></span><span class='hint'>mult(a,b)</span></span><span class='lexic'>;</span><span class='symbol'>'Mul'</span><span class='lexic'>()]</span><br>
+&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z390534'><span><span class='ident'>div</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>[@</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390534",this)' onmouseleave='srcref_leave("Z390534",this)'><span><span class='ident'>a</span></span></span><span class='hint'>div(a,b)</span></span><span class='lexic'>;@</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z390534",this)' onmouseleave='srcref_leave("Z390534",this)'><span><span class='ident'>b</span></span></span><span class='hint'>div(a,b)</span></span><span class='lexic'>;</span><span class='symbol'>'Div'</span><span class='lexic'>()]</span><span class='lexic'>}}</span>
 <p></div>
 
 
@@ -234,7 +214,7 @@ extensible syntax:
 
 <p><div class='code'>
 <span class='keyword'>syntax</span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='ident'>expr</span><span class='lexic'>,</span>&nbsp;<span class='ident'>start</span>&nbsp;<span class='lexic'>(</span><span class='ident'>calc</span><span class='lexic'>):</span>&nbsp;'&nbsp;<span class='const'><span class='pattern'>&quot;calcnet:&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[calc]:</span></span><span class='pattern'>c</span>&nbsp;'<br>
-&nbsp;&nbsp;<span class='lexic'>{</span>&nbsp;<span class='keyword'>return</span>&nbsp;<span class='symbol'>'lisp'</span><span class='lexic'>(</span><span class='symbol'>'n.asm'</span><span class='lexic'>(</span><span class='lexic'>&#8709;</span><span class='lexic'>,@</span><a href='#Z385827'><span class='ident'>calc_compile_dotnet</span></a><span class='lexic'>(</span><span class='ident'>c</span><span class='lexic'>),</span><span class='symbol'>'Box'</span><span class='lexic'>(</span><span class='ident'>t_Double</span><span class='lexic'>)))</span>&nbsp;<span class='lexic'>}</span>
+&nbsp;&nbsp;<span class='lexic'>{</span>&nbsp;<span class='keyword'>return</span>&nbsp;<span class='symbol'>'lisp'</span><span class='lexic'>(</span><span class='symbol'>'n.asm'</span><span class='lexic'>(</span><span class='lexic'>&#8709;</span><span class='lexic'>,@</span><a href='#Z390350'><span class='ident'>calc_compile_dotnet</span></a><span class='lexic'>(</span><span class='ident'>c</span><span class='lexic'>),</span><span class='symbol'>'Box'</span><span class='lexic'>(</span><span class='ident'>t_Double</span><span class='lexic'>)))</span>&nbsp;<span class='lexic'>}</span>
 <p></div>
 
 
@@ -244,7 +224,7 @@ extensible syntax:
 <p><div class='code'>
 <span class='keyword'>syntax</span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='ident'>expr</span><span class='lexic'>,</span>&nbsp;<span class='ident'>start</span>&nbsp;<span class='lexic'>(</span><span class='ident'>calc</span><span class='lexic'>):</span>&nbsp;'&nbsp;<span class='const'><span class='pattern'>&quot;calc:&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[calc]:</span></span><span class='pattern'>c</span>&nbsp;'<br>
 &nbsp;&nbsp;<span class='lexic'>{</span>&nbsp;<span class='keyword'>return</span>&nbsp;<span class='symbol'>'lisp'</span><span class='lexic'>(</span><span class='withhint'><span class='ident'>%S&lt;&lt;</span><span class='hint'>macro&nbsp;S&lt;&lt;&nbsp;args:&nbsp;<br>
-(&quot;A&nbsp;short&nbsp;form&nbsp;for&nbsp;[(buildstring&nbsp;...)]&quot;)</span></span><span class='lexic'>(</span><a href='#Z385104'><span class='ident'>calc_eval</span></a><span class='lexic'>(</span><span class='lexic'>&#8709;</span><span class='lexic'>,</span><span class='ident'>c</span><span class='lexic'>)))</span>&nbsp;<span class='lexic'>}</span>
+A&nbsp;short&nbsp;form&nbsp;for&nbsp;[(buildstring&nbsp;...)]</span></span><span class='lexic'>(</span><a href='#Z389558'><span class='ident'>calc_eval</span></a><span class='lexic'>(</span><span class='lexic'>&#8709;</span><span class='lexic'>,</span><span class='ident'>c</span><span class='lexic'>)))</span>&nbsp;<span class='lexic'>}</span>
 <p></div>
 
 
@@ -254,7 +234,8 @@ extensible syntax:
 
 <p><div class='code'>
 <span class='withhint'><span class='ident'>writeline</span><span class='hint'>macro&nbsp;writeline&nbsp;args:&nbsp;<br>
-(&quot;Prints&nbsp;a&nbsp;string&nbsp;of&nbsp;arguments&nbsp;into&nbsp;a&nbsp;standard&nbsp;output,&quot;&nbsp;&quot;using&nbsp;the&nbsp;[to-string]&nbsp;function&nbsp;to&nbsp;print&nbsp;each&nbsp;value.&quot;)</span></span><span class='lexic'>(calcnet:</span>&nbsp;<span class='keyword'>let</span>&nbsp;<span class='ident'>x</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='const'>2</span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='const'>2</span><span class='lexic'>*</span><span class='const'>2</span><span class='lexic'>+</span><span class='ident'>x</span><span class='lexic'>*</span><span class='const'>3</span><span class='lexic'>)</span>
+Prints&nbsp;a&nbsp;string&nbsp;of&nbsp;arguments&nbsp;into&nbsp;a&nbsp;standard&nbsp;output,<br>
+using&nbsp;the&nbsp;[to-string]&nbsp;function&nbsp;to&nbsp;print&nbsp;each&nbsp;value.</span></span><span class='lexic'>(calcnet:</span>&nbsp;<span class='keyword'>let</span>&nbsp;<span class='ident'>x</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='const'>2</span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='const'>2</span><span class='lexic'>*</span><span class='const'>2</span><span class='lexic'>+</span><span class='ident'>x</span><span class='lexic'>*</span><span class='const'>3</span><span class='lexic'>)</span>
 <p></div>
 
 
@@ -265,12 +246,44 @@ transformations, with multiple different (often just slightly different)
 ASTs. And this is exactly what PFront is designed for.
 
 <p>You can see a more complex language implementation (a C-like language translated
-to LLVM directly or an own LLVM-like IR) here:
-<a href="https://github.com/combinatorylogic/clike">https://github.com/combinatorylogic/clike</a>
+to LLVM directly or an own LLVM-like IR) <a href="https://github.com/combinatorylogic/clike">here</a> (with a
+literate code <a href="https://combinatorylogic.github.io/mbase-docs/clike.pdf">here</a>).
 
+
+<div class='none'>
+  <span id='dummy_to'><span id='too'>&nbsp;</span></span>
+  <span id='dummy_from'><span id='frm'>&nbsp;</span></span>
 </div>
+
+
+
+    <svg>
+      <defs>
+        <marker id="m1" markerWidth="8" markerHeight="8" refx="5" refy="5">
+          <circle cx="5" cy="5" r="1.5"></circle>
+        </marker>
+        <marker id="m2" 
+                markerWidth="5" markerHeight="5" viewBox="-6 -6 12 12" 
+                refX="-2" refY="0" 
+                markerUnits="strokeWidth" 
+                orient="auto">
+          <polygon points="-2,0 -5,5 5,0 -5,-5" fill="grey" stroke="black" stroke-width="1px"/>
+        </marker>
+      </defs>
+      <g data-source="frm" data-target="too">
+        <line marker-start="url(#m1)" marker-end="url(#m2)"></line>
+      </g>
+    </svg>
+    
+</div>
+
 
 </body>
 
 </html>
+
+
+
+
+
 
