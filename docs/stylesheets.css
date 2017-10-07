@@ -6,7 +6,7 @@
   left: 120%;
   top: 120%;
 }
-svg {
+.svgarrows {
   position: absolute;
   left: 0;
   top: 0;
@@ -28,7 +28,7 @@ line {
 .democode { font-family: monospace; border-style: solid; border-width: 1px; font-size: 80%; }
 .const { color: #0099ff; }
 .symbol { color: #0099ff; }
-.column { width: 800px; text-align: justify; }
+.column { width: 60%; text-align: justify; }
 
 .withhint { position: relative; }
 .hint { display: none; }
@@ -43,3 +43,5 @@ line {
     border: 0.1em solid #b7ddf2;
     border-radius: 0.5em;
 }
+
+body { font-family: sans-serif; font-weight: 100; }

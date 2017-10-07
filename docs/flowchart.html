@@ -1,0 +1,811 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN">
+<html>
+  <head>
+    <script src="scripts.js" type="text/javascript"></script>
+    <script src="scripts1.js" type="text/javascript"></script>
+    <link rel="stylesheet" href="stylesheets.css" type="text/css">
+
+    <meta http-equiv=Content-Type content="text/html; charset=iso-8859-1">
+    <title>Literate output</title>
+  </head>
+  
+<body lang="EN-GB" link=blue vlink=purple>
+
+<div class="column">
+
+
+
+<h1>Pseudocode to flowchart DSL</h1>
+
+<p>Sometimes it can be useful to embed a flowchart <a href="#svgexample">like this one</a> into your literate code,
+but drawing it by hand can be tedious. Instead, we can generate a passable Graphviz flowchart out of a pure text
+pseudocode lightly decorated with some control flow.
+
+<h2>Pseudocode AST</h2>
+
+<p>Our pseudocode must support simple structured control flow features - sequence, if, do, while, and
+to a limited extend labels and gotos (mainly for escaping from nested loops).
+
+<p>Expressions are only allowed as conditionals (in if, while and do-while), and we have a special syntax for
+"not". Everything else in this pseudocode is just plain text.
+
+
+<p><div class='code'>
+<span class='keyword'>ast</span>&nbsp;<span class='ident'>flowlang</span>&nbsp;<span class='keyword'>recform</span>&nbsp;<span class='lexic'>{</span><br>
+<span class='ident'>stmt</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>block</span><span class='lexic'>(</span><span class='ident'>text</span><span class='lexic'>:</span><span class='ident'>t</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>seq</span><span class='lexic'>(.*</span><span class='ident'>stmt</span><span class='lexic'>:</span><span class='ident'>es</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>namedseq</span><span class='lexic'>(</span><span class='ident'>text</span><span class='lexic'>:</span><span class='ident'>lbl</span><span class='lexic'>,</span>&nbsp;<span class='lexic'>*</span><span class='ident'>stmt</span><span class='lexic'>:</span><span class='ident'>es</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>if</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>e</span><span class='lexic'>,</span>&nbsp;<span class='ident'>stmt</span><span class='lexic'>:</span><span class='ident'>tr</span><span class='lexic'>,</span>&nbsp;<span class='ident'>stmt</span><span class='lexic'>:</span><span class='ident'>fl</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>while</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>e</span><span class='lexic'>,</span>&nbsp;<span class='ident'>stmt</span><span class='lexic'>:</span><span class='ident'>body</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>dowhile</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>e</span><span class='lexic'>,</span>&nbsp;<span class='ident'>stmt</span><span class='lexic'>:</span><span class='ident'>body</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>label</span><span class='lexic'>(</span><span class='ident'>lblident</span><span class='lexic'>:</span><span class='ident'>id</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>goto</span><span class='lexic'>(</span><span class='ident'>lblident</span><span class='lexic'>:</span><span class='ident'>id</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>nop</span><span class='lexic'>()</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>;</span><br>
+<span class='ident'>expr</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>eblock</span><span class='lexic'>(</span><span class='ident'>text</span><span class='lexic'>:</span><span class='ident'>t</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>not</span><span class='lexic'>(</span><span class='ident'>expr</span><span class='lexic'>:</span><span class='ident'>e</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>;</span><br>
+<span class='lexic'>}</span>
+<p></div>
+
+
+<h2>Pseudocode parser</h2>
+
+Here is a syntax definition for the pseudocode language in PEG:
+
+
+<p><div class='code'>
+<span class='keyword'>parser</span>&nbsp;<span class='ident'>pflowlang</span>&nbsp;<span class='keyword'>(</span><span class='ident'>pfront</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>{</span><br>
+&nbsp;&nbsp;<span class='keyword'>target</span>&nbsp;<span class='ident'>flowlang</span><span class='keyword'>;</span><br>
+&nbsp;&nbsp;<span class='keyword'>!!</span><span class='ident'>Spaces</span><span class='keyword'>;</span><br>
+&nbsp;&nbsp;<span class='keyword'>[</span><span class='ident'>lexical</span><span class='keyword'>:]</span>&nbsp;&#8656;&nbsp;<span class='pattern'><span class='keyword'>[lexical]</span></span>&nbsp;&#8658;&nbsp;<span class='keyword'>{</span><span class='ident'>ctoken</span>&nbsp;<span class='keyword'>=</span>&nbsp;<span class='ident'>lexic</span><span class='keyword'>};</span><br>
+&nbsp;&nbsp;<span class='keyword'>[</span><span class='ident'>keyword</span><span class='keyword'>:]</span>&nbsp;&#8656;&nbsp;<span class='pattern'><span class='keyword'>[keyword]</span></span>&nbsp;<span class='keyword'><span class='pattern'>![IdentRest]</span></span>&nbsp;&#8658;&nbsp;<span class='keyword'>{</span><span class='ident'>ctoken</span>&nbsp;<span class='keyword'>=</span>&nbsp;<span class='ident'>keyword</span><span class='keyword'>};</span><br>
+&nbsp;&nbsp;<span class='keyword'>@@</span><span class='ident'>flowkwords</span>&nbsp;&#8656;&nbsp;<span class='const'><span class='pattern'>&quot;begin&quot;</span></span><span class='keyword'>/</span><span class='const'><span class='pattern'>&quot;end&quot;</span></span><span class='keyword'>/</span><span class='const'><span class='pattern'>&quot;if&quot;</span></span><span class='keyword'>/</span><span class='const'><span class='pattern'>&quot;while&quot;</span></span><span class='keyword'>/</span><span class='const'><span class='pattern'>&quot;else&quot;</span></span><span class='keyword'>/</span><span class='const'><span class='pattern'>&quot;then&quot;</span></span><span class='keyword'>/</span><span class='const'><span class='pattern'>&quot;do&quot;</span></span><span class='keyword'>/</span><span class='const'><span class='pattern'>&quot;goto&quot;</span></span><span class='keyword'>;</span><br>
+&nbsp;&nbsp;<span class='keyword'>@@</span><span class='ident'>flowsymbols</span>&nbsp;&#8656;&nbsp;<span class='pattern'><span class='const'>&quot;@&quot;</span></span><span class='keyword'>/</span><span class='pattern'><span class='const'>&quot;;&quot;</span></span><span class='keyword'>/</span><span class='pattern'><span class='const'>&quot;!&quot;</span></span><span class='keyword'>/</span><span class='pattern'><span class='const'>&quot;(&quot;</span></span><span class='keyword'>/</span><span class='pattern'><span class='const'>&quot;)&quot;</span></span><span class='keyword'>;</span><br>
+&nbsp;&nbsp;<span class='keyword'>@@</span><span class='ident'>flowkword</span>&nbsp;&#8656;&nbsp;<span class='keyword'>(</span><span class='pattern'><span class='keyword'>[flowkwords]</span></span><span class='keyword'>/</span><span class='pattern'><span class='keyword'>[flowsymbols]</span></span><span class='keyword'>)</span>&nbsp;<span class='keyword'><span class='pattern'>![IdentRest]</span></span><span class='keyword'>;</span><br>
+&nbsp;&nbsp;<span class='keyword'>@@</span><span class='ident'>flowspace</span>&nbsp;&#8656;&nbsp;<span class='pattern'><span class='keyword'>[Space]</span></span><span class='keyword'>/</span><span class='pattern'><span class='keyword'>[flowsymbols]</span></span><span class='keyword'>;</span><br>
+&nbsp;&nbsp;<span class='keyword'>@@</span><span class='ident'>flowchar</span>&nbsp;&#8656;&nbsp;<span class='keyword'>(</span><span class='pattern'><span class='const'>&quot;\&quot;</span></span>&nbsp;<span class='keyword'>.)</span>&nbsp;<span class='keyword'>/</span>&nbsp;<span class='keyword'>.;</span><br>
+&nbsp;&nbsp;<span class='keyword'>@@</span><span class='ident'>anyword</span>&nbsp;&#8656;&nbsp;<span class='keyword'><span class='pattern'>![flowkword]</span></span>&nbsp;<span class='keyword'><span class='pattern'>(![flowspace]</span></span><span class='pattern'>&nbsp;</span><span class='keyword'><span class='pattern'>[flowchar])+</span></span><span class='keyword'>;</span><br>
+&nbsp;&nbsp;<span class='keyword'>@</span><span class='ident'>anywordtk</span>&nbsp;&#8656;&nbsp;<span class='pattern'><span class='keyword'>[anyword]</span></span><span class='keyword'>;</span><br>
+&nbsp;&nbsp;<span class='ident'>pflowlang</span>&nbsp;&#8656;&nbsp;<span class='pattern'>slist</span><span class='keyword'><span class='pattern'>&lt;[flowstmt]&gt;:</span></span><span class='pattern'>ts</span>&nbsp;<span class='keyword'><span class='pattern'>[Spaces]*</span></span>&nbsp;&#8658;&nbsp;<span class='ident'>ts</span><span class='keyword'>;</span><br>
+&nbsp;&nbsp;<span class='ident'>flowstmt</span>&nbsp;&#8656;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='pattern'><span class='const'>&quot;@&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[ident]:</span></span><span class='pattern'>l</span>&nbsp;<span class='pattern'><span class='const'>&quot;:&quot;</span></span>&nbsp;&#8658;&nbsp;<span class='ident'>label</span><span class='keyword'>(</span><span class='ident'>l</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>/</span>&nbsp;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='const'><span class='pattern'>goto</span></span>&nbsp;<span class='keyword'><span class='pattern'>[ident]:</span></span><span class='pattern'>l</span>&nbsp;&#8658;&nbsp;<span class='ident'>goto</span><span class='keyword'>(</span><span class='ident'>l</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>/</span>&nbsp;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='const'><span class='pattern'>begin</span></span>&nbsp;<span class='pattern'><span class='const'>&quot;(&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[flowblock]:</span></span><span class='pattern'>lbl</span>&nbsp;<span class='pattern'><span class='const'>&quot;)&quot;</span></span>&nbsp;<span class='pattern'>eslist</span><span class='keyword'><span class='pattern'>&lt;[flowstmt]&gt;:</span></span><span class='pattern'>ts</span>&nbsp;<span class='const'><span class='pattern'>end</span></span>&nbsp;&#8658;&nbsp;<span class='ident'>namedseq</span><span class='keyword'>(</span><span class='ident'>lbl</span><span class='keyword'>,</span>&nbsp;<span class='ident'>ts</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>/</span>&nbsp;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='const'><span class='pattern'>begin</span></span>&nbsp;<span class='pattern'>eslist</span><span class='keyword'><span class='pattern'>&lt;[flowstmt]&gt;:</span></span><span class='pattern'>ts</span>&nbsp;<span class='const'><span class='pattern'>end</span></span>&nbsp;&#8658;&nbsp;<span class='ident'>seq</span><span class='keyword'>(</span><span class='keyword'>@</span><span class='ident'>ts</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>/</span>&nbsp;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='const'><span class='pattern'>if</span></span>&nbsp;<span class='keyword'><span class='pattern'>[flowexpr]:</span></span><span class='pattern'>e</span>&nbsp;<span class='const'><span class='pattern'>then</span></span>&nbsp;<span class='keyword'><span class='pattern'>[flowstmt]:</span></span><span class='pattern'>tr</span>&nbsp;<span class='const'><span class='pattern'>else</span></span>&nbsp;<span class='keyword'><span class='pattern'>[flowstmt]:</span></span><span class='pattern'>fl</span>&nbsp;&#8658;&nbsp;<span class='ident'>if</span><span class='keyword'>(</span><span class='ident'>e</span><span class='keyword'>,</span><span class='ident'>tr</span><span class='keyword'>,</span>&nbsp;<span class='ident'>fl</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>/</span>&nbsp;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='const'><span class='pattern'>if</span></span>&nbsp;<span class='keyword'><span class='pattern'>[flowexpr]:</span></span><span class='pattern'>e</span>&nbsp;<span class='const'><span class='pattern'>then</span></span>&nbsp;<span class='keyword'><span class='pattern'>[flowstmt]:</span></span><span class='pattern'>tr</span>&nbsp;&#8658;&nbsp;<span class='ident'>if</span><span class='keyword'>(</span><span class='ident'>e</span><span class='keyword'>,</span>&nbsp;<span class='ident'>tr</span><span class='keyword'>,</span>&nbsp;<span class='ident'>nop</span><span class='keyword'>())</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>/</span>&nbsp;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='const'><span class='pattern'>while</span></span>&nbsp;<span class='keyword'><span class='pattern'>[flowexpr]:</span></span><span class='pattern'>e</span>&nbsp;<span class='const'><span class='pattern'>do</span></span>&nbsp;<span class='keyword'><span class='pattern'>[flowstmt]:</span></span><span class='pattern'>b</span>&nbsp;&#8658;&nbsp;<span class='ident'>while</span><span class='keyword'>(</span><span class='ident'>e</span><span class='keyword'>,</span>&nbsp;<span class='ident'>b</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>/</span>&nbsp;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='const'><span class='pattern'>do</span></span>&nbsp;<span class='keyword'><span class='pattern'>[flowstmt]:</span></span><span class='pattern'>s</span>&nbsp;<span class='const'><span class='pattern'>while</span></span>&nbsp;<span class='keyword'><span class='pattern'>[flowexpr]:</span></span><span class='pattern'>e</span>&nbsp;&#8658;&nbsp;<span class='ident'>dowhile</span><span class='keyword'>(</span><span class='ident'>e</span><span class='keyword'>,</span>&nbsp;<span class='ident'>s</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>/</span>&nbsp;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='keyword'><span class='pattern'>[flowblock]:</span></span><span class='pattern'>b</span>&nbsp;<span class='const'><span class='pattern'>&quot;;&quot;</span></span><span class='keyword'><span class='pattern'>?</span></span>&nbsp;&#8658;&nbsp;<span class='ident'>block</span><span class='keyword'>(</span><span class='ident'>b</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>;</span><br>
+&nbsp;&nbsp;<span class='ident'>flowexpr</span>&nbsp;&#8656;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='pattern'><span class='const'>&quot;!&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[flowexpr]:</span></span><span class='pattern'>e</span>&nbsp;&#8658;&nbsp;<span class='ident'>not</span><span class='keyword'>(</span><span class='ident'>e</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>/</span>&nbsp;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='pattern'><span class='const'>&quot;(&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[flowexpr]:</span></span><span class='pattern'>e</span>&nbsp;<span class='pattern'><span class='const'>&quot;)&quot;</span></span>&nbsp;&#8658;&nbsp;<span class='ident'>e</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>/</span>&nbsp;&nbsp;<span class='keyword'>{</span>&nbsp;<span class='keyword'><span class='pattern'>[flowblock]:</span></span><span class='pattern'>b</span>&nbsp;&#8658;&nbsp;<span class='ident'>eblock</span><span class='keyword'>(</span><span class='ident'>b</span><span class='keyword'>)</span>&nbsp;<span class='keyword'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>;</span><br>
+&nbsp;&nbsp;<span class='ident'>anywordv</span>&nbsp;&#8656;&nbsp;<span class='keyword'><span class='pattern'>[anywordtk]:</span></span><span class='pattern'>v</span>&nbsp;&#8658;&nbsp;<span class='keyword'>$</span><span class='ident'>val</span><span class='keyword'>(</span><span class='ident'>v</span><span class='keyword'>)</span><span class='keyword'>;</span><br>
+&nbsp;&nbsp;<span class='ident'>flowblock</span>&nbsp;&#8656;&nbsp;<span class='pattern'>slist</span><span class='keyword'><span class='pattern'>&lt;[anywordv]&gt;</span></span><span class='keyword'>;</span><br>
+<span class='keyword'>}</span>
+<p></div>
+
+
+<h3 id="example">A syntax example</h3>
+
+
+
+
+
+
+
+<p><div class='democode'>
+<span class='keyword'>begin</span>&nbsp;<span class='lexic'>(</span>Main&nbsp;loop<span class='lexic'>)</span><br>
+&nbsp;<span class='keyword'>while</span>&nbsp;More&nbsp;input&nbsp;items?&nbsp;<span class='keyword'>do</span>&nbsp;<span class='keyword'>begin</span><br>
+&nbsp;&nbsp;&nbsp;Prompt&nbsp;for&nbsp;input<span class='lexic'>;</span><br>
+&nbsp;&nbsp;&nbsp;Read&nbsp;line<br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>if</span>&nbsp;<span class='lexic'>!(</span>Input&nbsp;is&nbsp;valid<span class='lexic'>)</span>&nbsp;<span class='keyword'>then</span>&nbsp;<span class='keyword'>begin</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Display&nbsp;error&nbsp;message<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>begin</span>&nbsp;<span class='lexic'>(</span>Wait<span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>while</span>&nbsp;<span class='lexic'>!(</span>Key&nbsp;pressed?<span class='lexic'>)</span>&nbsp;<span class='keyword'>do</span>&nbsp;<span class='keyword'>begin</span>&nbsp;<span class='keyword'>end</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>goto</span>&nbsp;<span class='ident'>End</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>end</span><br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>end</span>&nbsp;<span class='keyword'>else</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Process&nbsp;the&nbsp;input<br>
+&nbsp;<span class='keyword'>end</span><br>
+&nbsp;<span class='lexic'>@</span><span class='ident'>End</span><span class='lexic'>:</span><br>
+<span class='keyword'>end</span>
+</div><p>
+
+
+<p>The example above is parsed into the following AST:
+
+
+<p><div class='democode'>
+<span class='lexic'>(</span><span class='ident'>namedseq</span>&nbsp;<span class='lexic'>(</span><span class='const'>&quot;Main&quot;</span>&nbsp;<span class='const'>&quot;loop&quot;</span><span class='lexic'>)</span>&nbsp;<br>
+&nbsp;&nbsp;<span class='lexic'>((</span><span class='ident'>while</span>&nbsp;<span class='lexic'>(</span><span class='ident'>eblock</span>&nbsp;<span class='lexic'>(</span><span class='const'>&quot;More&quot;</span>&nbsp;<span class='const'>&quot;input&quot;</span>&nbsp;<span class='const'>&quot;items?&quot;</span><span class='lexic'>))</span>&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>(</span><span class='ident'>seq</span>&nbsp;<span class='lexic'>(</span><span class='ident'>block</span>&nbsp;<span class='lexic'>(</span><span class='const'>&quot;Prompt&quot;</span>&nbsp;<span class='const'>&quot;for&quot;</span>&nbsp;<span class='const'>&quot;input&quot;</span><span class='lexic'>))</span>&nbsp;<span class='lexic'>(</span><span class='ident'>block</span>&nbsp;<span class='lexic'>(</span><span class='const'>&quot;Read&quot;</span>&nbsp;<span class='const'>&quot;line&quot;</span><span class='lexic'>))</span>&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>(if</span>&nbsp;<span class='lexic'>(not</span>&nbsp;<span class='lexic'>(</span><span class='ident'>eblock</span>&nbsp;<span class='lexic'>(</span><span class='const'>&quot;Input&quot;</span>&nbsp;<span class='const'>&quot;is&quot;</span>&nbsp;<span class='const'>&quot;valid&quot;</span><span class='lexic'>)))</span>&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>(</span><span class='ident'>seq</span>&nbsp;<span class='lexic'>(</span><span class='ident'>block</span>&nbsp;<span class='lexic'>(</span><span class='const'>&quot;Display&quot;</span>&nbsp;<span class='const'>&quot;error&quot;</span>&nbsp;<span class='const'>&quot;message&quot;</span><span class='lexic'>))</span>&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>(</span><span class='ident'>namedseq</span>&nbsp;<span class='lexic'>(</span><span class='const'>&quot;Wait&quot;</span><span class='lexic'>)</span>&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>((</span><span class='ident'>while</span>&nbsp;<span class='lexic'>(not</span>&nbsp;<span class='lexic'>(</span><span class='ident'>eblock</span>&nbsp;<span class='lexic'>(</span><span class='const'>&quot;Key&quot;</span>&nbsp;<span class='const'>&quot;pressed?&quot;</span><span class='lexic'>)))</span>&nbsp;<span class='lexic'>(</span><span class='ident'>seq</span>&nbsp;<span class='lexic'>))</span>&nbsp;<span class='lexic'>(</span><span class='ident'>goto</span>&nbsp;<span class='ident'>End</span><span class='lexic'>))))</span>&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>(</span><span class='ident'>block</span>&nbsp;<span class='lexic'>(</span><span class='const'>&quot;Process&quot;</span>&nbsp;<span class='const'>&quot;the&quot;</span>&nbsp;<span class='const'>&quot;input&quot;</span><span class='lexic'>)))))</span>&nbsp;<span class='lexic'>(</span><span class='ident'>label</span>&nbsp;<span class='ident'>End</span><span class='lexic'>)))</span><br>
+
+</div><p>
+
+
+<h2>Lowering to CFG</h2>
+
+The next AST will only contain named basic blocks of different shapes:
+
+
+<p><div class='code'>
+<span class='keyword'>ast</span>&nbsp;<span class='ident'>flowlow</span>&nbsp;<span class='keyword'>recform</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;<span class='ident'>bblock</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>entry</span><span class='lexic'>(</span><span class='ident'>text</span><span class='lexic'>:</span><span class='ident'>bl</span><span class='lexic'>,</span>&nbsp;<span class='ident'>ident</span><span class='lexic'>:</span><span class='ident'>name</span><span class='lexic'>,</span>&nbsp;<span class='ident'>nxtident</span><span class='lexic'>:</span><span class='ident'>next</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>simple</span><span class='lexic'>(</span><span class='ident'>text</span><span class='lexic'>:</span><span class='ident'>bl</span><span class='lexic'>,</span>&nbsp;<span class='ident'>ident</span><span class='lexic'>:</span><span class='ident'>name</span><span class='lexic'>,</span>&nbsp;<span class='ident'>text</span><span class='lexic'>:</span><span class='ident'>code</span><span class='lexic'>,</span>&nbsp;<span class='ident'>nxtident</span><span class='lexic'>:</span><span class='ident'>next</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>branch</span><span class='lexic'>(</span><span class='ident'>text</span><span class='lexic'>:</span><span class='ident'>bl</span><span class='lexic'>,</span>&nbsp;<span class='ident'>ident</span><span class='lexic'>:</span><span class='ident'>name</span><span class='lexic'>,</span>&nbsp;<span class='ident'>text</span><span class='lexic'>:</span><span class='ident'>cnd</span><span class='lexic'>,</span>&nbsp;<span class='ident'>nxtident</span><span class='lexic'>:</span><span class='ident'>tr</span><span class='lexic'>,</span>&nbsp;<span class='ident'>nxtident</span><span class='lexic'>:</span><span class='ident'>fl</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>point</span><span class='lexic'>(</span><span class='ident'>text</span><span class='lexic'>:</span><span class='ident'>bl</span><span class='lexic'>,</span>&nbsp;<span class='ident'>ident</span><span class='lexic'>:</span><span class='ident'>name</span><span class='lexic'>,</span>&nbsp;<span class='ident'>nxtident</span><span class='lexic'>:</span><span class='ident'>next</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>exit</span><span class='lexic'>(</span><span class='ident'>text</span><span class='lexic'>:</span><span class='ident'>bl</span><span class='lexic'>,</span>&nbsp;<span class='ident'>ident</span><span class='lexic'>:</span><span class='ident'>name</span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>;</span><br>
+<span class='lexic'>}</span>
+<p></div>
+
+
+<p>We'll directly translate the source AST into a set of basic blocks, in one pass. Not conditionals are resolved
+here as well, which is a bit clumsy, but we don't have that many places where conditionals can appear.
+
+Some nodes can expand via proxy point basic blocks, which we'll eliminate in the next pass.
+
+
+<p><div class='code'>
+<span id='Z483146'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>compile_flowlang</span><span class='lexic'>(</span><span id='Z483499'><span><span class='ident'>src</span></span></span><span class='lexic'>)</span><br>
+<span class='keyword'>collector</span><span class='lexic'>(</span><span id='Z483654'><span><span class='ident'>add</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z483946'><span><span class='ident'>get</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;<span id='Z483661'><span><span class='ident'>bl</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>mkref</span><span class='lexic'>(</span><span class='lexic'>&#8709;</span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;<span id='Z483929'><span><span class='ident'>compile</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>flowlang</span>&nbsp;<span class='lexic'>/rec,</span>&nbsp;<span class='lexic'>dst</span>&nbsp;<span class='ident'>flowlow</span><span class='lexic'>/</span>&nbsp;<span class='lexic'>(</span><span class='ident'>stmt</span><span class='lexic'>:</span><span class='idfrom' onmouseenter='srcref_over("Z483499",this)' onmouseleave='srcref_leave("Z483499",this)'><span><span class='ident'>src</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>deep</span>&nbsp;<span class='ident'>stmt</span><span class='lexic'>(</span><span id='Z483666'><span><span class='ident'>next</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z483663'><span><span class='ident'>block</span></span></span>&nbsp;&#8594;&nbsp;<span class='keyword'>symbols</span><span class='lexic'>(</span><span id='Z483662'><span><span class='ident'>n</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483654",this)' onmouseleave='srcref_leave("Z483654",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>(</span><span class='keyword'>mk</span><span class='lexic'>:</span><span class='ident'>bblock</span><span class='lexic'>:</span><span class='withhint'><span class='ident'>simple</span><span class='hint'>flowlow:bblock:simple(bl,name,code,next)</span></span><span class='lexic'>(^</span><span class='idfrom' onmouseenter='srcref_over("Z483661",this)' onmouseleave='srcref_leave("Z483661",this)'><span><span class='ident'>bl</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483662",this)' onmouseleave='srcref_leave("Z483662",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483663",this)' onmouseleave='srcref_leave("Z483663",this)'><span><span class='ident'>t</span></span></span><span class='hint'>block(t)</span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483666",this)' onmouseleave='srcref_leave("Z483666",this)'><span><span class='ident'>next</span></span></span><span class='lexic'>));</span>&nbsp;<span class='keyword'>return</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483662",this)' onmouseleave='srcref_leave("Z483662",this)'><span><span class='ident'>n</span></span></span>&nbsp;<span class='lexic'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z483881'><span><span class='ident'>label</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>{</span><span class='idfrom' onmouseenter='srcref_over("Z483654",this)' onmouseleave='srcref_leave("Z483654",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>(</span><span class='keyword'>mk</span><span class='lexic'>:</span><span class='ident'>bblock</span><span class='lexic'>:</span><span class='withhint'><span class='ident'>point</span><span class='hint'>flowlow:bblock:point(bl,name,next)</span></span><span class='lexic'>(^</span><span class='idfrom' onmouseenter='srcref_over("Z483661",this)' onmouseleave='srcref_leave("Z483661",this)'><span><span class='ident'>bl</span></span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483881",this)' onmouseleave='srcref_leave("Z483881",this)'><span><span class='ident'>id</span></span></span><span class='hint'>label(id)</span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483666",this)' onmouseleave='srcref_leave("Z483666",this)'><span><span class='ident'>next</span></span></span><span class='lexic'>));</span>&nbsp;<span class='keyword'>return</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483881",this)' onmouseleave='srcref_leave("Z483881",this)'><span><span class='ident'>id</span></span></span><span class='hint'>label(id)</span></span>&nbsp;<span class='lexic'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z483902'><span><span class='ident'>goto</span></span></span>&nbsp;&#8594;&nbsp;<span class='keyword'>symbols</span><span class='lexic'>(</span><span id='Z483901'><span><span class='ident'>n</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><span class='idfrom' onmouseenter='srcref_over("Z483654",this)' onmouseleave='srcref_leave("Z483654",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>(</span><span class='keyword'>mk</span><span class='lexic'>:</span><span class='ident'>bblock</span><span class='lexic'>:</span><span class='withhint'><span class='ident'>point</span><span class='hint'>flowlow:bblock:point(bl,name,next)</span></span><span class='lexic'>(^</span><span class='idfrom' onmouseenter='srcref_over("Z483661",this)' onmouseleave='srcref_leave("Z483661",this)'><span><span class='ident'>bl</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483901",this)' onmouseleave='srcref_leave("Z483901",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483902",this)' onmouseleave='srcref_leave("Z483902",this)'><span><span class='ident'>id</span></span></span><span class='hint'>goto(id)</span></span><span class='lexic'>));</span>&nbsp;<span class='keyword'>return</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483901",this)' onmouseleave='srcref_leave("Z483901",this)'><span><span class='ident'>n</span></span></span>&nbsp;<span class='lexic'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z483678'><span><span class='ident'>seq</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>{</span>&nbsp;<span id='Z483686'><span><span class='ident'>res</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='withhint'><span class='ident'>reverse</span><span class='hint'>function&nbsp;reverse&nbsp;lst:&nbsp;<br>
+Returns&nbsp;the&nbsp;reversed&nbsp;list.</span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483678",this)' onmouseleave='srcref_leave("Z483678",this)'><span><span class='ident'>es</span></span></span><span class='hint'>seq(es)</span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>return</span>&nbsp;<span class='withhint'><span class='ident'>foldl</span><span class='hint'>function&nbsp;foldl&nbsp;f,&nbsp;i,&nbsp;l:&nbsp;<br>
+Folds&nbsp;[l]&nbsp;with&nbsp;a&nbsp;given&nbsp;[f]&nbsp;and&nbsp;an&nbsp;initial&nbsp;accumulator&nbsp;value&nbsp;[i].</span></span><span class='lexic'>(</span><span class='keyword'>&lambda;</span><span class='lexic'>(</span><span id='Z483685'><span><span class='ident'>nxt</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z483684'><span><span class='ident'>f</span></span></span><span class='lexic'>)</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483684",this)' onmouseleave='srcref_leave("Z483684",this)'><span><span class='ident'>f</span></span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z483685",this)' onmouseleave='srcref_leave("Z483685",this)'><span><span class='ident'>nxt</span></span></span><span class='lexic'>)</span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483666",this)' onmouseleave='srcref_leave("Z483666",this)'><span><span class='ident'>next</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483686",this)' onmouseleave='srcref_leave("Z483686",this)'><span><span class='ident'>res</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z483695'><span><span class='ident'>namedseq</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>{</span>&nbsp;<span id='Z483707'><span><span class='ident'>blbck</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='lexic'>^</span><span class='idfrom' onmouseenter='srcref_over("Z483661",this)' onmouseleave='srcref_leave("Z483661",this)'><span><span class='ident'>bl</span></span></span><span class='lexic'>;</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483661",this)' onmouseleave='srcref_leave("Z483661",this)'><span><span class='ident'>bl</span></span></span>&nbsp;<span class='lexic'>:=</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483695",this)' onmouseleave='srcref_leave("Z483695",this)'><span><span class='ident'>lbl</span></span></span><span class='hint'>namedseq(lbl,es)</span></span><span class='lexic'>;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z483706'><span><span class='ident'>res</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='withhint'><span class='ident'>reverse</span><span class='hint'>function&nbsp;reverse&nbsp;lst:&nbsp;<br>
+Returns&nbsp;the&nbsp;reversed&nbsp;list.</span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483695",this)' onmouseleave='srcref_leave("Z483695",this)'><span><span class='ident'>es</span></span></span><span class='hint'>namedseq(lbl,es)</span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z483708'><span><span class='ident'>ret</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='withhint'><span class='ident'>foldl</span><span class='hint'>function&nbsp;foldl&nbsp;f,&nbsp;i,&nbsp;l:&nbsp;<br>
+Folds&nbsp;[l]&nbsp;with&nbsp;a&nbsp;given&nbsp;[f]&nbsp;and&nbsp;an&nbsp;initial&nbsp;accumulator&nbsp;value&nbsp;[i].</span></span><span class='lexic'>(</span><span class='keyword'>&lambda;</span><span class='lexic'>(</span><span id='Z483705'><span><span class='ident'>nxt</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z483704'><span><span class='ident'>f</span></span></span><span class='lexic'>)</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483704",this)' onmouseleave='srcref_leave("Z483704",this)'><span><span class='ident'>f</span></span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z483705",this)' onmouseleave='srcref_leave("Z483705",this)'><span><span class='ident'>nxt</span></span></span><span class='lexic'>)</span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483666",this)' onmouseleave='srcref_leave("Z483666",this)'><span><span class='ident'>next</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483706",this)' onmouseleave='srcref_leave("Z483706",this)'><span><span class='ident'>res</span></span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483661",this)' onmouseleave='srcref_leave("Z483661",this)'><span><span class='ident'>bl</span></span></span>&nbsp;<span class='lexic'>:=</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483707",this)' onmouseleave='srcref_leave("Z483707",this)'><span><span class='ident'>blbck</span></span></span><span class='lexic'>;</span>&nbsp;<span class='keyword'>return</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483708",this)' onmouseleave='srcref_leave("Z483708",this)'><span><span class='ident'>ret</span></span></span><span class='lexic'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z483737'><span><span class='ident'>if</span></span></span>&nbsp;&#8594;&nbsp;<span class='keyword'>symbols</span><span class='lexic'>(</span><span id='Z483735'><span><span class='ident'>n</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>match</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483737",this)' onmouseleave='srcref_leave("Z483737",this)'><span><span class='ident'>e</span></span></span><span class='hint'>if(e,tr,fl)</span></span>&nbsp;<span class='keyword'>with</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='symbol'><span class='pattern'>'not'</span></span><span class='lexic'><span class='pattern'>(</span></span><span id='Z483736'><span><span class='ident'><span class='pattern'>e</span></span></span></span><span class='lexic'><span class='pattern'>)</span></span>&nbsp;&#8594;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483654",this)' onmouseleave='srcref_leave("Z483654",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>(</span><span class='keyword'>mk</span><span class='lexic'>:</span><span class='ident'>bblock</span><span class='lexic'>:</span><span class='withhint'><span class='ident'>branch</span><span class='hint'>flowlow:bblock:branch(bl,name,cnd,tr,fl)</span></span><span class='lexic'>(^</span><span class='idfrom' onmouseenter='srcref_over("Z483661",this)' onmouseleave='srcref_leave("Z483661",this)'><span><span class='ident'>bl</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483735",this)' onmouseleave='srcref_leave("Z483735",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483736",this)' onmouseleave='srcref_leave("Z483736",this)'><span><span class='ident'>e</span></span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483737",this)' onmouseleave='srcref_leave("Z483737",this)'><span><span class='ident'>fl</span></span></span><span class='hint'>if(e,tr,fl)</span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z483666",this)' onmouseleave='srcref_leave("Z483666",this)'><span><span class='ident'>next</span></span></span><span class='lexic'>),</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483737",this)' onmouseleave='srcref_leave("Z483737",this)'><span><span class='ident'>tr</span></span></span><span class='hint'>if(e,tr,fl)</span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z483666",this)' onmouseleave='srcref_leave("Z483666",this)'><span><span class='ident'>next</span></span></span><span class='lexic'>)))</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'><span class='pattern'>else</span></span>&nbsp;&#8594;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483654",this)' onmouseleave='srcref_leave("Z483654",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>(</span><span class='keyword'>mk</span><span class='lexic'>:</span><span class='ident'>bblock</span><span class='lexic'>:</span><span class='withhint'><span class='ident'>branch</span><span class='hint'>flowlow:bblock:branch(bl,name,cnd,tr,fl)</span></span><span class='lexic'>(^</span><span class='idfrom' onmouseenter='srcref_over("Z483661",this)' onmouseleave='srcref_leave("Z483661",this)'><span><span class='ident'>bl</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483735",this)' onmouseleave='srcref_leave("Z483735",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483737",this)' onmouseleave='srcref_leave("Z483737",this)'><span><span class='ident'>e</span></span></span><span class='hint'>if(e,tr,fl)</span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483737",this)' onmouseleave='srcref_leave("Z483737",this)'><span><span class='ident'>tr</span></span></span><span class='hint'>if(e,tr,fl)</span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z483666",this)' onmouseleave='srcref_leave("Z483666",this)'><span><span class='ident'>next</span></span></span><span class='lexic'>),</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483737",this)' onmouseleave='srcref_leave("Z483737",this)'><span><span class='ident'>fl</span></span></span><span class='hint'>if(e,tr,fl)</span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z483666",this)' onmouseleave='srcref_leave("Z483666",this)'><span><span class='ident'>next</span></span></span><span class='lexic'>)));</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>return</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483735",this)' onmouseleave='srcref_leave("Z483735",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z483793'><span><span class='ident'>while</span></span></span>&nbsp;&#8594;&nbsp;<span class='keyword'>symbols</span><span class='lexic'>(</span><span id='Z483791'><span><span class='ident'>n</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>match</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483793",this)' onmouseleave='srcref_leave("Z483793",this)'><span><span class='ident'>e</span></span></span><span class='hint'>while(e,body)</span></span>&nbsp;<span class='keyword'>with</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='symbol'><span class='pattern'>'not'</span></span><span class='lexic'><span class='pattern'>(</span></span><span id='Z483792'><span><span class='ident'><span class='pattern'>e</span></span></span></span><span class='lexic'><span class='pattern'>)</span></span>&nbsp;&#8594;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483654",this)' onmouseleave='srcref_leave("Z483654",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>(</span><span class='keyword'>mk</span><span class='lexic'>:</span><span class='ident'>bblock</span><span class='lexic'>:</span><span class='withhint'><span class='ident'>branch</span><span class='hint'>flowlow:bblock:branch(bl,name,cnd,tr,fl)</span></span><span class='lexic'>(^</span><span class='idfrom' onmouseenter='srcref_over("Z483661",this)' onmouseleave='srcref_leave("Z483661",this)'><span><span class='ident'>bl</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483791",this)' onmouseleave='srcref_leave("Z483791",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483792",this)' onmouseleave='srcref_leave("Z483792",this)'><span><span class='ident'>e</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483666",this)' onmouseleave='srcref_leave("Z483666",this)'><span><span class='ident'>next</span></span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483793",this)' onmouseleave='srcref_leave("Z483793",this)'><span><span class='ident'>body</span></span></span><span class='hint'>while(e,body)</span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z483791",this)' onmouseleave='srcref_leave("Z483791",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>)))</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'><span class='pattern'>else</span></span>&nbsp;&#8594;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483654",this)' onmouseleave='srcref_leave("Z483654",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>(</span><span class='keyword'>mk</span><span class='lexic'>:</span><span class='ident'>bblock</span><span class='lexic'>:</span><span class='withhint'><span class='ident'>branch</span><span class='hint'>flowlow:bblock:branch(bl,name,cnd,tr,fl)</span></span><span class='lexic'>(^</span><span class='idfrom' onmouseenter='srcref_over("Z483661",this)' onmouseleave='srcref_leave("Z483661",this)'><span><span class='ident'>bl</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483791",this)' onmouseleave='srcref_leave("Z483791",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483793",this)' onmouseleave='srcref_leave("Z483793",this)'><span><span class='ident'>e</span></span></span><span class='hint'>while(e,body)</span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483793",this)' onmouseleave='srcref_leave("Z483793",this)'><span><span class='ident'>body</span></span></span><span class='hint'>while(e,body)</span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z483791",this)' onmouseleave='srcref_leave("Z483791",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>),</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483666",this)' onmouseleave='srcref_leave("Z483666",this)'><span><span class='ident'>next</span></span></span><span class='lexic'>));</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>return</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483791",this)' onmouseleave='srcref_leave("Z483791",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z483829'><span><span class='ident'>dowhile</span></span></span>&nbsp;&#8594;&nbsp;<span class='keyword'>symbols</span><span class='lexic'>(</span><span id='Z483832'><span><span class='ident'>n</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z483849'><span><span class='ident'>bd</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483829",this)' onmouseleave='srcref_leave("Z483829",this)'><span><span class='ident'>body</span></span></span><span class='hint'>dowhile(e,body)</span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z483832",this)' onmouseleave='srcref_leave("Z483832",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>match</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483829",this)' onmouseleave='srcref_leave("Z483829",this)'><span><span class='ident'>e</span></span></span><span class='hint'>dowhile(e,body)</span></span>&nbsp;<span class='keyword'>with</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='symbol'><span class='pattern'>'not'</span></span><span class='lexic'><span class='pattern'>(</span></span><span id='Z483848'><span><span class='ident'><span class='pattern'>e</span></span></span></span><span class='lexic'><span class='pattern'>)</span></span>&nbsp;&#8594;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483654",this)' onmouseleave='srcref_leave("Z483654",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>(</span><span class='keyword'>mk</span><span class='lexic'>:</span><span class='ident'>bblock</span><span class='lexic'>:</span><span class='withhint'><span class='ident'>branch</span><span class='hint'>flowlow:bblock:branch(bl,name,cnd,tr,fl)</span></span><span class='lexic'>(^</span><span class='idfrom' onmouseenter='srcref_over("Z483661",this)' onmouseleave='srcref_leave("Z483661",this)'><span><span class='ident'>bl</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483832",this)' onmouseleave='srcref_leave("Z483832",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483848",this)' onmouseleave='srcref_leave("Z483848",this)'><span><span class='ident'>e</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483666",this)' onmouseleave='srcref_leave("Z483666",this)'><span><span class='ident'>next</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483849",this)' onmouseleave='srcref_leave("Z483849",this)'><span><span class='ident'>bd</span></span></span><span class='lexic'>))</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'><span class='pattern'>else</span></span>&nbsp;&#8594;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483654",this)' onmouseleave='srcref_leave("Z483654",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>(</span><span class='keyword'>mk</span><span class='lexic'>:</span><span class='ident'>bblock</span><span class='lexic'>:</span><span class='withhint'><span class='ident'>branch</span><span class='hint'>flowlow:bblock:branch(bl,name,cnd,tr,fl)</span></span><span class='lexic'>(^</span><span class='idfrom' onmouseenter='srcref_over("Z483661",this)' onmouseleave='srcref_leave("Z483661",this)'><span><span class='ident'>bl</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483832",this)' onmouseleave='srcref_leave("Z483832",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483829",this)' onmouseleave='srcref_leave("Z483829",this)'><span><span class='ident'>e</span></span></span><span class='hint'>dowhile(e,body)</span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483849",this)' onmouseleave='srcref_leave("Z483849",this)'><span><span class='ident'>bd</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483666",this)' onmouseleave='srcref_leave("Z483666",this)'><span><span class='ident'>next</span></span></span><span class='lexic'>));</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>return</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483849",this)' onmouseleave='srcref_leave("Z483849",this)'><span><span class='ident'>bd</span></span></span><span class='lexic'>}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'>nop</span>&nbsp;&#8594;&nbsp;<span class='keyword'>return</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483666",this)' onmouseleave='srcref_leave("Z483666",this)'><span><span class='ident'>next</span></span></span><span class='lexic'>};</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>deep</span>&nbsp;<span class='ident'>expr</span>&nbsp;<span class='lexic'>{</span>&nbsp;<span id='Z483914'><span><span class='ident'>eblock</span></span></span>&nbsp;&#8594;&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483914",this)' onmouseleave='srcref_leave("Z483914",this)'><span><span class='ident'>t</span></span></span><span class='hint'>eblock(t)</span></span>&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z483920'><span><span class='ident'>not</span></span></span>&nbsp;&#8594;&nbsp;<span class='symbol'>'not'</span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z483920",this)' onmouseleave='srcref_leave("Z483920",this)'><span><span class='ident'>e</span></span></span><span class='hint'>not(e)</span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>}};</span><br>
+&nbsp;&nbsp;&nbsp;<span id='Z483935'><span><span class='ident'>nbegin</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483929",this)' onmouseleave='srcref_leave("Z483929",this)'><span><span class='ident'>compile</span></span></span><span class='lexic'>(</span><span class='symbol'>'EXIT'</span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>with</span>&nbsp;<span class='keyword'>target</span>&nbsp;<span class='lexic'>(</span><span class='ident'>flowlow</span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483654",this)' onmouseleave='srcref_leave("Z483654",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>(</span><span class='keyword'>mk</span><span class='lexic'>:</span><span class='ident'>bblock</span><span class='lexic'>:</span><span class='withhint'><span class='ident'>entry</span><span class='hint'>flowlow:bblock:entry(bl,name,next)</span></span><span class='lexic'>(</span><span class='lexic'>&#8709;</span><span class='lexic'>,</span>&nbsp;<span class='symbol'>'START'</span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483935",this)' onmouseleave='srcref_leave("Z483935",this)'><span><span class='ident'>nbegin</span></span></span><span class='lexic'>));</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483654",this)' onmouseleave='srcref_leave("Z483654",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>(</span><span class='keyword'>mk</span><span class='lexic'>:</span><span class='ident'>bblock</span><span class='lexic'>:</span><span class='withhint'><span class='ident'>exit</span><span class='hint'>flowlow:bblock:exit(bl,name)</span></span><span class='lexic'>(</span><span class='lexic'>&#8709;</span><span class='lexic'>,</span>&nbsp;<span class='symbol'>'EXIT'</span><span class='lexic'>));</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>return</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z483946",this)' onmouseleave='srcref_leave("Z483946",this)'><span><span class='ident'>get</span></span></span><span class='lexic'>()}}</span>
+<p></div>
+
+
+<h2>CFG cleanup</h2>
+
+<p>We created some redundant points in the previous pass, let's clean them up before we start inserting the useful
+points. Since points have only one exit, it's ok to fuse them directly into their destination basic blocks.
+
+
+<p><div class='code'>
+<span id='Z484069'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>flowlang_delete_points</span><span class='lexic'>(</span><span id='Z484380'><span><span class='ident'>src</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;<span id='Z484519'><span><span class='ident'>rewrites</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>mkhash</span><span class='lexic'>();</span><br>
+&nbsp;&nbsp;<span id='Z484536'><span><span class='ident'>prep</span></span></span><span class='lexic'>()</span>&nbsp;<span class='lexic'>=</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>iter</span>&nbsp;<span id='Z484387'><span><span class='ident'>b</span></span></span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z484380",this)' onmouseleave='srcref_leave("Z484380",this)'><span><span class='ident'>src</span></span></span>&nbsp;<span class='keyword'>do</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>flowlow</span>&nbsp;<span class='lexic'>/rec/</span>&nbsp;<span class='lexic'>(</span><span class='ident'>bblock</span><span class='lexic'>:</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z484387",this)' onmouseleave='srcref_leave("Z484387",this)'><span><span class='ident'>b</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>deep</span>&nbsp;<span class='ident'>bblock</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z484520'><span><span class='ident'>point</span></span></span>&nbsp;&#8594;&nbsp;<span class='ident'>ohashput</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z484519",this)' onmouseleave='srcref_leave("Z484519",this)'><span><span class='ident'>rewrites</span></span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z484520",this)' onmouseleave='srcref_leave("Z484520",this)'><span><span class='ident'>next</span></span></span><span class='hint'>point(bl,name,next)</span></span><span class='lexic'>,</span>&nbsp;<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z484520",this)' onmouseleave='srcref_leave("Z484520",this)'><span><span class='ident'>name</span></span></span><span class='hint'>point(bl,name,next)</span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='keyword'>else</span>&nbsp;&#8594;&nbsp;<span class='lexic'>&#8709;</span><span class='lexic'>}};</span><br>
+&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z484536",this)' onmouseleave='srcref_leave("Z484536",this)'><span><span class='ident'>prep</span></span></span><span class='lexic'>();</span><br>
+&nbsp;&nbsp;<span id='Z484649'><span><span class='ident'>rewritefn</span></span></span><span class='lexic'>(</span><span id='Z484545'><span><span class='ident'>id</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='keyword'>do</span>&nbsp;<span id='Z484544'><span><span class='ident'>loop</span></span></span><span class='lexic'>(</span><span id='Z484543'><span><span class='ident'>id</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z484545",this)' onmouseleave='srcref_leave("Z484545",this)'><span><span class='ident'>id</span></span></span><span class='lexic'>)</span>&nbsp;<span class='keyword'>aif</span><span class='lexic'>(</span><span class='ident'>chk</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>ohashget</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z484519",this)' onmouseleave='srcref_leave("Z484519",this)'><span><span class='ident'>rewrites</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z484543",this)' onmouseleave='srcref_leave("Z484543",this)'><span><span class='ident'>id</span></span></span><span class='lexic'>))</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z484544",this)' onmouseleave='srcref_leave("Z484544",this)'><span><span class='ident'>loop</span></span></span><span class='lexic'>(</span><span class='ident'>chk</span><span class='lexic'>)</span>&nbsp;<span class='keyword'>else</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z484543",this)' onmouseleave='srcref_leave("Z484543",this)'><span><span class='ident'>id</span></span></span><span class='lexic'>;</span><br>
+&nbsp;&nbsp;<span class='keyword'>map</span>&nbsp;<span class='keyword'>append</span>&nbsp;<span id='Z484562'><span><span class='ident'>b</span></span></span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z484380",this)' onmouseleave='srcref_leave("Z484380",this)'><span><span class='ident'>src</span></span></span>&nbsp;<span class='keyword'>do</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>flowlow</span>&nbsp;<span class='lexic'>/rec/</span>&nbsp;<span class='lexic'>(</span><span class='ident'>bblock</span><span class='lexic'>:</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z484562",this)' onmouseleave='srcref_leave("Z484562",this)'><span><span class='ident'>b</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>deep</span>&nbsp;<span class='ident'>bblock</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>point</span>&nbsp;&#8594;&nbsp;<span class='lexic'>&#8709;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='keyword'>else</span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='ident'>node</span><span class='lexic'>()]};</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>once</span>&nbsp;<span class='ident'>nxtident</span><span class='lexic'>:</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z484649",this)' onmouseleave='srcref_leave("Z484649",this)'><span><span class='ident'>rewritefn</span></span></span><span class='lexic'>(</span><span class='ident'>thisnodesrc</span><span class='lexic'>());</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>once</span>&nbsp;<span class='ident'>ident</span><span class='lexic'>:</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z484649",this)' onmouseleave='srcref_leave("Z484649",this)'><span><span class='ident'>rewritefn</span></span></span><span class='lexic'>(</span><span class='ident'>thisnodesrc</span><span class='lexic'>())}}</span>
+<p></div>
+
+
+<p>The flow chart will look better if we insert points before the basic blocks with multiple incoming arrows.
+
+
+<p><div class='code'>
+<span id='Z484780'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>getcfg</span><span class='lexic'>(</span><span id='Z485100'><span><span class='ident'>bb</span></span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>flowlow</span>&nbsp;<span class='lexic'>/rec/</span>&nbsp;<span class='lexic'>(</span><span class='ident'>bblock</span><span class='lexic'>:</span><span class='idfrom' onmouseenter='srcref_over("Z485100",this)' onmouseleave='srcref_leave("Z485100",this)'><span><span class='ident'>bb</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>deep</span>&nbsp;<span class='ident'>bblock</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z485196'><span><span class='ident'>entry</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485196",this)' onmouseleave='srcref_leave("Z485196",this)'><span><span class='ident'>bl</span></span></span><span class='hint'>entry(bl,name,next)</span></span><span class='lexic'>;</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485196",this)' onmouseleave='srcref_leave("Z485196",this)'><span><span class='ident'>name</span></span></span><span class='hint'>entry(bl,name,next)</span></span><span class='lexic'>;</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485196",this)' onmouseleave='srcref_leave("Z485196",this)'><span><span class='ident'>next</span></span></span><span class='hint'>entry(bl,name,next)</span></span><span class='lexic'>]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z485215'><span><span class='ident'>simple</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485215",this)' onmouseleave='srcref_leave("Z485215",this)'><span><span class='ident'>bl</span></span></span><span class='hint'>simple(bl,name,code,next)</span></span><span class='lexic'>;</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485215",this)' onmouseleave='srcref_leave("Z485215",this)'><span><span class='ident'>name</span></span></span><span class='hint'>simple(bl,name,code,next)</span></span><span class='lexic'>;</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485215",this)' onmouseleave='srcref_leave("Z485215",this)'><span><span class='ident'>next</span></span></span><span class='hint'>simple(bl,name,code,next)</span></span><span class='lexic'>]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z485237'><span><span class='ident'>branch</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485237",this)' onmouseleave='srcref_leave("Z485237",this)'><span><span class='ident'>bl</span></span></span><span class='hint'>branch(bl,name,cnd,tr,fl)</span></span><span class='lexic'>;</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485237",this)' onmouseleave='srcref_leave("Z485237",this)'><span><span class='ident'>name</span></span></span><span class='hint'>branch(bl,name,cnd,tr,fl)</span></span><span class='lexic'>;</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485237",this)' onmouseleave='srcref_leave("Z485237",this)'><span><span class='ident'>tr</span></span></span><span class='hint'>branch(bl,name,cnd,tr,fl)</span></span><span class='lexic'>;</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485237",this)' onmouseleave='srcref_leave("Z485237",this)'><span><span class='ident'>fl</span></span></span><span class='hint'>branch(bl,name,cnd,tr,fl)</span></span><span class='lexic'>]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z485255'><span><span class='ident'>point</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485255",this)' onmouseleave='srcref_leave("Z485255",this)'><span><span class='ident'>bl</span></span></span><span class='hint'>point(bl,name,next)</span></span><span class='lexic'>;</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485255",this)' onmouseleave='srcref_leave("Z485255",this)'><span><span class='ident'>name</span></span></span><span class='hint'>point(bl,name,next)</span></span><span class='lexic'>;</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485255",this)' onmouseleave='srcref_leave("Z485255",this)'><span><span class='ident'>next</span></span></span><span class='hint'>point(bl,name,next)</span></span><span class='lexic'>]</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z485268'><span><span class='ident'>exit</span></span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>[</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485268",this)' onmouseleave='srcref_leave("Z485268",this)'><span><span class='ident'>bl</span></span></span><span class='hint'>exit(bl,name)</span></span><span class='lexic'>;</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485268",this)' onmouseleave='srcref_leave("Z485268",this)'><span><span class='ident'>name</span></span></span><span class='hint'>exit(bl,name)</span></span><span class='lexic'>]</span><span class='lexic'>}}</span><br>
+<br>
+<span id='Z484781'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>flowlang_insert_points</span><span class='lexic'>(</span><span id='Z485291'><span><span class='ident'>src</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;<span id='Z485285'><span><span class='ident'>cntr</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>mkhash</span><span class='lexic'>();</span>&nbsp;<span id='Z485296'><span><span class='ident'>labels</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>mkhash</span><span class='lexic'>();</span><br>
+&nbsp;&nbsp;<span id='Z485299'><span><span class='ident'>addcntr</span></span></span><span class='lexic'>(</span><span id='Z485286'><span><span class='ident'>id</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='lexic'>{</span><span id='Z485288'><span><span class='ident'>tmp</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>ohashget</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485285",this)' onmouseleave='srcref_leave("Z485285",this)'><span><span class='ident'>cntr</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485286",this)' onmouseleave='srcref_leave("Z485286",this)'><span><span class='ident'>id</span></span></span><span class='lexic'>);</span>&nbsp;<span id='Z485289'><span><span class='ident'>tmp</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='keyword'>if</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485288",this)' onmouseleave='srcref_leave("Z485288",this)'><span><span class='ident'>tmp</span></span></span><span class='lexic'>)</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485288",this)' onmouseleave='srcref_leave("Z485288",this)'><span><span class='ident'>tmp</span></span></span>&nbsp;<span class='keyword'>else</span>&nbsp;<span class='const'>0</span><span class='lexic'>;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>ohashput</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485285",this)' onmouseleave='srcref_leave("Z485285",this)'><span><span class='ident'>cntr</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485286",this)' onmouseleave='srcref_leave("Z485286",this)'><span><span class='ident'>id</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485289",this)' onmouseleave='srcref_leave("Z485289",this)'><span><span class='ident'>tmp</span></span></span><span class='lexic'>+</span><span class='const'>1</span><span class='lexic'>)};</span><br>
+&nbsp;&nbsp;<span class='keyword'>iter</span>&nbsp;<span id='Z485294'><span><span class='ident'>b</span></span></span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485291",this)' onmouseleave='srcref_leave("Z485291",this)'><span><span class='ident'>src</span></span></span>&nbsp;<span class='keyword'>do</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z485295'><span><span class='ident'>c</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<a href='#Z484780'><span class='ident'>getcfg</span></a><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485294",this)' onmouseleave='srcref_leave("Z485294",this)'><span><span class='ident'>b</span></span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>if</span>&nbsp;<span class='lexic'>(</span><span class='ident'>car</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485295",this)' onmouseleave='srcref_leave("Z485295",this)'><span><span class='ident'>c</span></span></span><span class='lexic'>))</span>&nbsp;<span class='ident'>ohashput</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485296",this)' onmouseleave='srcref_leave("Z485296",this)'><span><span class='ident'>labels</span></span></span><span class='lexic'>,</span>&nbsp;<span class='ident'>cadr</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485295",this)' onmouseleave='srcref_leave("Z485295",this)'><span><span class='ident'>c</span></span></span><span class='lexic'>),</span>&nbsp;<span class='ident'>car</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485295",this)' onmouseleave='srcref_leave("Z485295",this)'><span><span class='ident'>c</span></span></span><span class='lexic'>));</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>iter</span>&nbsp;<span id='Z485300'><span><span class='ident'>nxt</span></span></span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='ident'>cddr</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485295",this)' onmouseleave='srcref_leave("Z485295",this)'><span><span class='ident'>c</span></span></span><span class='lexic'>)</span>&nbsp;<span class='keyword'>do</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485299",this)' onmouseleave='srcref_leave("Z485299",this)'><span><span class='ident'>addcntr</span></span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485300",this)' onmouseleave='srcref_leave("Z485300",this)'><span><span class='ident'>nxt</span></span></span><span class='lexic'>)};</span><br>
+&nbsp;&nbsp;<span id='Z485333'><span><span class='ident'>getlabel</span></span></span><span class='lexic'>(</span><span id='Z485304'><span><span class='ident'>id</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>ohashget</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485296",this)' onmouseleave='srcref_leave("Z485296",this)'><span><span class='ident'>labels</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485304",this)' onmouseleave='srcref_leave("Z485304",this)'><span><span class='ident'>id</span></span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;<span class='keyword'>collector</span><span class='lexic'>(</span><span id='Z485327'><span><span class='ident'>add</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z485337'><span><span class='ident'>get</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z485318'><span><span class='ident'>rewrites</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>mkhash</span><span class='lexic'>();</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z485435'><span><span class='ident'>rewritefn</span></span></span><span class='lexic'>(</span><span id='Z485319'><span><span class='ident'>id</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='keyword'>aif</span><span class='lexic'>(</span><span class='ident'>chk</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>ohashget</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485318",this)' onmouseleave='srcref_leave("Z485318",this)'><span><span class='ident'>rewrites</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485319",this)' onmouseleave='srcref_leave("Z485319",this)'><span><span class='ident'>id</span></span></span><span class='lexic'>))</span>&nbsp;<span class='ident'>chk</span>&nbsp;<span class='keyword'>else</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485319",this)' onmouseleave='srcref_leave("Z485319",this)'><span><span class='ident'>id</span></span></span><span class='lexic'>;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class='withhint'><span class='ident'>hashiter</span><span class='hint'>function&nbsp;hashiter&nbsp;fn,&nbsp;ht:&nbsp;<br>
+Applies&nbsp;the&nbsp;function&nbsp;[fn]([key]&nbsp;[value])&nbsp;to&nbsp;all&nbsp;the&nbsp;key&nbsp;bindings&nbsp;in&nbsp;a&nbsp;given&nbsp;hashtable.</span></span><span class='lexic'>(</span><span class='keyword'>&lambda;</span><span class='lexic'>(</span><span id='Z485325'><span><span class='ident'>k</span></span></span><span class='lexic'>,</span><span id='Z485323'><span><span class='ident'>n</span></span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>if</span>&nbsp;<span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485323",this)' onmouseleave='srcref_leave("Z485323",this)'><span><span class='ident'>n</span></span></span><span class='lexic'>&gt;</span><span class='const'>1</span><span class='lexic'>)</span>&nbsp;<span class='keyword'>symbols</span><span class='lexic'>(</span><span id='Z485326'><span><span class='ident'>nn</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>ohashput</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485318",this)' onmouseleave='srcref_leave("Z485318",this)'><span><span class='ident'>rewrites</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485325",this)' onmouseleave='srcref_leave("Z485325",this)'><span><span class='ident'>k</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485326",this)' onmouseleave='srcref_leave("Z485326",this)'><span><span class='ident'>nn</span></span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485327",this)' onmouseleave='srcref_leave("Z485327",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>(</span><span class='keyword'>with</span>&nbsp;<span class='keyword'>target</span>&nbsp;<span class='lexic'>(</span><span class='ident'>flowlow</span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>mk</span><span class='lexic'>:</span><span class='ident'>bblock</span><span class='lexic'>:</span><span class='withhint'><span class='ident'>point</span><span class='hint'>flowlow:bblock:point(bl,name,next)</span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485333",this)' onmouseleave='srcref_leave("Z485333",this)'><span><span class='ident'>getlabel</span></span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485325",this)' onmouseleave='srcref_leave("Z485325",this)'><span><span class='ident'>k</span></span></span><span class='lexic'>),</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485326",this)' onmouseleave='srcref_leave("Z485326",this)'><span><span class='ident'>nn</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485325",this)' onmouseleave='srcref_leave("Z485325",this)'><span><span class='ident'>k</span></span></span><span class='lexic'>)})}</span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485285",this)' onmouseleave='srcref_leave("Z485285",this)'><span><span class='ident'>cntr</span></span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>return</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485337",this)' onmouseleave='srcref_leave("Z485337",this)'><span><span class='ident'>get</span></span></span><span class='lexic'>()</span><span class='lexic'>&#8853;</span><span class='keyword'>map</span>&nbsp;<span id='Z485348'><span><span class='ident'>b</span></span></span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485291",this)' onmouseleave='srcref_leave("Z485291",this)'><span><span class='ident'>src</span></span></span>&nbsp;<span class='keyword'>do</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>flowlow</span>&nbsp;<span class='lexic'>/rec/</span>&nbsp;<span class='lexic'>(</span><span class='ident'>bblock</span><span class='lexic'>:</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485348",this)' onmouseleave='srcref_leave("Z485348",this)'><span><span class='ident'>b</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>once</span>&nbsp;<span class='ident'>nxtident</span><span class='lexic'>:</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485435",this)' onmouseleave='srcref_leave("Z485435",this)'><span><span class='ident'>rewritefn</span></span></span><span class='lexic'>(</span><span class='ident'>thisnodesrc</span><span class='lexic'>())}}}</span>
+<p></div>
+
+
+<h2>Graphviz backend</h2>
+
+<p>Now we can simply sort the basic blocks into clusters (by their <b>bl</b>
+values) and pretty-print them in a Graphviz dot syntax.
+
+
+<p><div class='code'>
+<span id='Z485572'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>display_flowlow</span><span class='lexic'>(</span><span id='Z485732'><span><span class='ident'>src</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z485828'><span><span class='ident'>addnode</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z485834'><span><span class='ident'>addarrow</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;<span id='Z485856'><span><span class='ident'>xxx</span></span></span><span class='lexic'>(</span><span id='Z485726'><span><span class='ident'>str</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='withhint'><span class='ident'>strinterleave</span><span class='hint'>function&nbsp;strinterleave&nbsp;lst,&nbsp;str:&nbsp;<br>
+Builds&nbsp;a&nbsp;string&nbsp;of&nbsp;lst&nbsp;elements&nbsp;interleaved&nbsp;with&nbsp;str.</span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z485726",this)' onmouseleave='srcref_leave("Z485726",this)'><span><span class='ident'>str</span></span></span><span class='lexic'>,</span>&nbsp;<span class='const'>&quot;&nbsp;&quot;</span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>visit</span><span class='lexic'>:</span><span class='ident'>flowlow</span>&nbsp;<span class='lexic'>/rec/</span>&nbsp;<span class='lexic'>(</span><span class='ident'>bblock</span><span class='lexic'>:</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485732",this)' onmouseleave='srcref_leave("Z485732",this)'><span><span class='ident'>src</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>deep</span>&nbsp;<span class='ident'>bblock</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z485829'><span><span class='ident'>entry</span></span></span>&nbsp;&#8594;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>{</span><span class='idfrom' onmouseenter='srcref_over("Z485828",this)' onmouseleave='srcref_leave("Z485828",this)'><span><span class='ident'>addnode</span></span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485829",this)' onmouseleave='srcref_leave("Z485829",this)'><span><span class='ident'>bl</span></span></span><span class='hint'>entry(bl,name,next)</span></span><span class='lexic'>,</span>&nbsp;$'${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485829",this)' onmouseleave='srcref_leave("Z485829",this)'><span><span class='ident'>name</span></span></span><span class='hint'>entry(bl,name,next)</span></span>}&nbsp;[shape=&quot;box&quot;,&nbsp;style=&quot;rounded&quot;,&nbsp;label=&quot;START&quot;];'<span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485834",this)' onmouseleave='srcref_leave("Z485834",this)'><span><span class='ident'>addarrow</span></span></span><span class='lexic'>(</span>$'${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485829",this)' onmouseleave='srcref_leave("Z485829",this)'><span><span class='ident'>name</span></span></span><span class='hint'>entry(bl,name,next)</span></span>}&nbsp;-&gt;&nbsp;${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485829",this)' onmouseleave='srcref_leave("Z485829",this)'><span><span class='ident'>next</span></span></span><span class='hint'>entry(bl,name,next)</span></span>};'<span class='lexic'>)}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z485919'><span><span class='ident'>exit</span></span></span>&nbsp;&#8594;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>{</span><span class='idfrom' onmouseenter='srcref_over("Z485828",this)' onmouseleave='srcref_leave("Z485828",this)'><span><span class='ident'>addnode</span></span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485919",this)' onmouseleave='srcref_leave("Z485919",this)'><span><span class='ident'>bl</span></span></span><span class='hint'>exit(bl,name)</span></span><span class='lexic'>,</span>&nbsp;$'${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485919",this)' onmouseleave='srcref_leave("Z485919",this)'><span><span class='ident'>name</span></span></span><span class='hint'>exit(bl,name)</span></span>}&nbsp;[shape=&quot;box&quot;,&nbsp;style=&quot;rounded&quot;,&nbsp;label=&quot;END&quot;];'<span class='lexic'>)}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z485851'><span><span class='ident'>simple</span></span></span>&nbsp;&#8594;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>{</span><span class='idfrom' onmouseenter='srcref_over("Z485828",this)' onmouseleave='srcref_leave("Z485828",this)'><span><span class='ident'>addnode</span></span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485851",this)' onmouseleave='srcref_leave("Z485851",this)'><span><span class='ident'>bl</span></span></span><span class='hint'>simple(bl,name,code,next)</span></span><span class='lexic'>,</span>&nbsp;$'${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485851",this)' onmouseleave='srcref_leave("Z485851",this)'><span><span class='ident'>name</span></span></span><span class='hint'>simple(bl,name,code,next)</span></span>}&nbsp;[shape=&quot;parallelogram&quot;,&nbsp;style=&quot;&quot;,&nbsp;label=&quot;${<span class='idfrom' onmouseenter='srcref_over("Z485856",this)' onmouseleave='srcref_leave("Z485856",this)'><span><span class='ident'>xxx</span></span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485851",this)' onmouseleave='srcref_leave("Z485851",this)'><span><span class='ident'>code</span></span></span><span class='hint'>simple(bl,name,code,next)</span></span><span class='lexic'>)</span>}&quot;];'<span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485834",this)' onmouseleave='srcref_leave("Z485834",this)'><span><span class='ident'>addarrow</span></span></span><span class='lexic'>(</span>$'${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485851",this)' onmouseleave='srcref_leave("Z485851",this)'><span><span class='ident'>name</span></span></span><span class='hint'>simple(bl,name,code,next)</span></span>}&nbsp;-&gt;&nbsp;${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485851",this)' onmouseleave='srcref_leave("Z485851",this)'><span><span class='ident'>next</span></span></span><span class='hint'>simple(bl,name,code,next)</span></span>};'<span class='lexic'>)}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z485904'><span><span class='ident'>point</span></span></span>&nbsp;&#8594;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>{</span><span class='idfrom' onmouseenter='srcref_over("Z485828",this)' onmouseleave='srcref_leave("Z485828",this)'><span><span class='ident'>addnode</span></span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485904",this)' onmouseleave='srcref_leave("Z485904",this)'><span><span class='ident'>bl</span></span></span><span class='hint'>point(bl,name,next)</span></span><span class='lexic'>,</span>&nbsp;$'${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485904",this)' onmouseleave='srcref_leave("Z485904",this)'><span><span class='ident'>name</span></span></span><span class='hint'>point(bl,name,next)</span></span>}&nbsp;[width=0&nbsp;shape=point&nbsp;label=&quot;&quot;];'<span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485834",this)' onmouseleave='srcref_leave("Z485834",this)'><span><span class='ident'>addarrow</span></span></span><span class='lexic'>(</span>$'${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485904",this)' onmouseleave='srcref_leave("Z485904",this)'><span><span class='ident'>name</span></span></span><span class='hint'>point(bl,name,next)</span></span>}&nbsp;-&gt;&nbsp;${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485904",this)' onmouseleave='srcref_leave("Z485904",this)'><span><span class='ident'>next</span></span></span><span class='hint'>point(bl,name,next)</span></span>};'<span class='lexic'>)}</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z485878'><span><span class='ident'>branch</span></span></span>&nbsp;&#8594;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>{</span><span class='idfrom' onmouseenter='srcref_over("Z485828",this)' onmouseleave='srcref_leave("Z485828",this)'><span><span class='ident'>addnode</span></span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485878",this)' onmouseleave='srcref_leave("Z485878",this)'><span><span class='ident'>bl</span></span></span><span class='hint'>branch(bl,name,cnd,tr,fl)</span></span><span class='lexic'>,</span>&nbsp;$'${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485878",this)' onmouseleave='srcref_leave("Z485878",this)'><span><span class='ident'>name</span></span></span><span class='hint'>branch(bl,name,cnd,tr,fl)</span></span>}&nbsp;[shape=&quot;diamond&quot;,&nbsp;style=&quot;filled&quot;,&nbsp;fillcolor=&quot;lightgrey&quot;,&nbsp;label=&quot;${<span class='idfrom' onmouseenter='srcref_over("Z485856",this)' onmouseleave='srcref_leave("Z485856",this)'><span><span class='ident'>xxx</span></span></span><span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485878",this)' onmouseleave='srcref_leave("Z485878",this)'><span><span class='ident'>cnd</span></span></span><span class='hint'>branch(bl,name,cnd,tr,fl)</span></span><span class='lexic'>)</span>}&quot;];'<span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485834",this)' onmouseleave='srcref_leave("Z485834",this)'><span><span class='ident'>addarrow</span></span></span><span class='lexic'>(</span>$'${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485878",this)' onmouseleave='srcref_leave("Z485878",this)'><span><span class='ident'>name</span></span></span><span class='hint'>branch(bl,name,cnd,tr,fl)</span></span>}&nbsp;-&gt;&nbsp;${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485878",this)' onmouseleave='srcref_leave("Z485878",this)'><span><span class='ident'>tr</span></span></span><span class='hint'>branch(bl,name,cnd,tr,fl)</span></span>}&nbsp;[taillabel=&quot;YES&quot;];'<span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>if</span>&nbsp;<span class='lexic'>(</span><span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485878",this)' onmouseleave='srcref_leave("Z485878",this)'><span><span class='ident'>fl</span></span></span><span class='hint'>branch(bl,name,cnd,tr,fl)</span></span><span class='lexic'>)</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z485834",this)' onmouseleave='srcref_leave("Z485834",this)'><span><span class='ident'>addarrow</span></span></span><span class='lexic'>(</span>$'${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485878",this)' onmouseleave='srcref_leave("Z485878",this)'><span><span class='ident'>name</span></span></span><span class='hint'>branch(bl,name,cnd,tr,fl)</span></span>}&nbsp;-&gt;&nbsp;${<span class='withhint'><span class='idfrom' onmouseenter='srcref_over("Z485878",this)' onmouseleave='srcref_leave("Z485878",this)'><span><span class='ident'>fl</span></span></span><span class='hint'>branch(bl,name,cnd,tr,fl)</span></span>}&nbsp;[taillabel=&quot;NO&quot;];'<span class='lexic'>)}}}}</span>
+<p></div>
+
+
+
+<p><div class='code'>
+<span id='Z485973'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>display_all</span><span class='lexic'>(</span><span id='Z486065'><span><span class='ident'>pfun</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z486060'><span><span class='ident'>src</span></span></span><span class='lexic'>)</span><br>
+<span class='keyword'>collector</span><span class='lexic'>(</span><span id='Z486034'><span><span class='ident'>addtopnode</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z486067'><span><span class='ident'>getnodes</span></span></span><span class='lexic'>)</span><br>
+<span class='keyword'>collector</span><span class='lexic'>(</span><span id='Z486064'><span><span class='ident'>addarrow</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z486086'><span><span class='ident'>getarrows</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;<span id='Z486047'><span><span class='ident'>nodes</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>mkhash</span><span class='lexic'>();</span><br>
+&nbsp;&nbsp;&nbsp;<span id='Z486037'><span><span class='ident'>xxx</span></span></span><span class='lexic'>(</span><span id='Z486028'><span><span class='ident'>str</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='withhint'><span class='ident'>strinterleave</span><span class='hint'>function&nbsp;strinterleave&nbsp;lst,&nbsp;str:&nbsp;<br>
+Builds&nbsp;a&nbsp;string&nbsp;of&nbsp;lst&nbsp;elements&nbsp;interleaved&nbsp;with&nbsp;str.</span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486028",this)' onmouseleave='srcref_leave("Z486028",this)'><span><span class='ident'>str</span></span></span><span class='lexic'>,</span>&nbsp;<span class='const'>&quot;&nbsp;&quot;</span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;<span id='Z486063'><span><span class='ident'>addnode</span></span></span><span class='lexic'>(</span><span id='Z486033'><span><span class='ident'>bl0</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z486035'><span><span class='ident'>txt</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>if</span>&nbsp;<span class='lexic'>(</span><span class='ident'>not</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486033",this)' onmouseleave='srcref_leave("Z486033",this)'><span><span class='ident'>bl0</span></span></span><span class='lexic'>))</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486034",this)' onmouseleave='srcref_leave("Z486034",this)'><span><span class='ident'>addtopnode</span></span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486035",this)' onmouseleave='srcref_leave("Z486035",this)'><span><span class='ident'>txt</span></span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>else</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z486048'><span><span class='ident'>bl</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486037",this)' onmouseleave='srcref_leave("Z486037",this)'><span><span class='ident'>xxx</span></span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486033",this)' onmouseleave='srcref_leave("Z486033",this)'><span><span class='ident'>bl0</span></span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>&lt;</span><span id='Z486045'><span><span class='ident'><span class='pattern'>add</span></span></span></span><span class='lexic'><span class='pattern'>:</span></span><span class='ident'><span class='pattern'>get</span></span><span class='lexic'>&gt;</span>&nbsp;<span class='lexic'>=</span>&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>aif</span><span class='lexic'>(</span><span class='ident'>chk</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>hashget</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486047",this)' onmouseleave='srcref_leave("Z486047",this)'><span><span class='ident'>nodes</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486048",this)' onmouseleave='srcref_leave("Z486048",this)'><span><span class='ident'>bl</span></span></span><span class='lexic'>))</span>&nbsp;<span class='ident'>chk</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>else</span>&nbsp;<span class='keyword'>collector</span><span class='lexic'>(</span><span id='Z486057'><span><span class='ident'>add</span></span></span><span class='lexic'>,</span><span id='Z486058'><span><span class='ident'>get</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>hashput</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486047",this)' onmouseleave='srcref_leave("Z486047",this)'><span><span class='ident'>nodes</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486048",this)' onmouseleave='srcref_leave("Z486048",this)'><span><span class='ident'>bl</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486057",this)' onmouseleave='srcref_leave("Z486057",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>:</span><span class='idfrom' onmouseenter='srcref_over("Z486058",this)' onmouseleave='srcref_leave("Z486058",this)'><span><span class='ident'>get</span></span></span><span class='lexic'>);</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486057",this)' onmouseleave='srcref_leave("Z486057",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>:</span><span class='idfrom' onmouseenter='srcref_over("Z486058",this)' onmouseleave='srcref_leave("Z486058",this)'><span><span class='ident'>get</span></span></span><span class='lexic'>};</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486045",this)' onmouseleave='srcref_leave("Z486045",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486035",this)' onmouseleave='srcref_leave("Z486035",this)'><span><span class='ident'>txt</span></span></span><span class='lexic'>)}};</span><br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>iter</span>&nbsp;<span id='Z486062'><span><span class='ident'>i</span></span></span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486060",this)' onmouseleave='srcref_leave("Z486060",this)'><span><span class='ident'>src</span></span></span>&nbsp;<span class='keyword'>do</span>&nbsp;<a href='#Z485572'><span class='ident'>display_flowlow</span></a><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486062",this)' onmouseleave='srcref_leave("Z486062",this)'><span><span class='ident'>i</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486063",this)' onmouseleave='srcref_leave("Z486063",this)'><span><span class='ident'>addnode</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486064",this)' onmouseleave='srcref_leave("Z486064",this)'><span><span class='ident'>addarrow</span></span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486065",this)' onmouseleave='srcref_leave("Z486065",this)'><span><span class='ident'>pfun</span></span></span><span class='lexic'>(</span><span class='const'>&quot;digraph&nbsp;G&nbsp;{&nbsp;graph&nbsp;[splines=ortho,&nbsp;nodesep=1,&nbsp;overlap=false];&quot;</span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>iter</span>&nbsp;<span id='Z486069'><span><span class='ident'>i</span></span></span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486067",this)' onmouseleave='srcref_leave("Z486067",this)'><span><span class='ident'>getnodes</span></span></span><span class='lexic'>()</span>&nbsp;<span class='keyword'>do</span>&nbsp;<span class='lexic'>{</span><span class='ident'>print</span><span class='lexic'>(</span><span class='const'>&quot;&nbsp;&nbsp;&nbsp;&nbsp;&quot;</span><span class='lexic'>);</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486065",this)' onmouseleave='srcref_leave("Z486065",this)'><span><span class='ident'>pfun</span></span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486069",this)' onmouseleave='srcref_leave("Z486069",this)'><span><span class='ident'>i</span></span></span><span class='lexic'>)};</span><br>
+&nbsp;&nbsp;&nbsp;<span class='withhint'><span class='ident'>hashiter</span><span class='hint'>function&nbsp;hashiter&nbsp;fn,&nbsp;ht:&nbsp;<br>
+Applies&nbsp;the&nbsp;function&nbsp;[fn]([key]&nbsp;[value])&nbsp;to&nbsp;all&nbsp;the&nbsp;key&nbsp;bindings&nbsp;in&nbsp;a&nbsp;given&nbsp;hashtable.</span></span><span class='lexic'>(</span><span class='keyword'>&lambda;</span><span class='lexic'>(</span><span id='Z486079'><span><span class='ident'>bl</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z486084'><span><span class='ident'>ns</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>&lt;</span><span class='ident'><span class='pattern'>add</span></span><span class='lexic'><span class='pattern'>:</span></span><span id='Z486081'><span><span class='ident'><span class='pattern'>get</span></span></span></span><span class='lexic'>&gt;</span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486084",this)' onmouseleave='srcref_leave("Z486084",this)'><span><span class='ident'>ns</span></span></span><span class='lexic'>;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486065",this)' onmouseleave='srcref_leave("Z486065",this)'><span><span class='ident'>pfun</span></span></span><span class='lexic'>(</span>$'&nbsp;&nbsp;&nbsp;&nbsp;subgraph&nbsp;cluster_${<span class='withhint'><span class='ident'>gensym</span><span class='hint'>function&nbsp;gensym&nbsp;:&nbsp;<br>
+Returns&nbsp;a&nbsp;unique&nbsp;symbol&nbsp;every&nbsp;time&nbsp;it&nbsp;is&nbsp;called.<br>
+Uniqueness&nbsp;is&nbsp;guaranteed&nbsp;within&nbsp;one&nbsp;run&nbsp;only.</span></span><span class='lexic'>()</span>}&nbsp;{'<span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486065",this)' onmouseleave='srcref_leave("Z486065",this)'><span><span class='ident'>pfun</span></span></span><span class='lexic'>(</span>$'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;label=&quot;${<span class='idfrom' onmouseenter='srcref_over("Z486079",this)' onmouseleave='srcref_leave("Z486079",this)'><span><span class='ident'>bl</span></span></span>}&quot;;&nbsp;style=filled;&nbsp;fillcolor=grey92;'<span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>iter</span>&nbsp;<span id='Z486083'><span><span class='ident'>i</span></span></span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486081",this)' onmouseleave='srcref_leave("Z486081",this)'><span><span class='ident'>get</span></span></span><span class='lexic'>()</span>&nbsp;<span class='keyword'>do</span>&nbsp;<span class='lexic'>{</span><span class='ident'>print</span><span class='lexic'>(</span><span class='const'>&quot;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&quot;</span><span class='lexic'>);</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486065",this)' onmouseleave='srcref_leave("Z486065",this)'><span><span class='ident'>pfun</span></span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486083",this)' onmouseleave='srcref_leave("Z486083",this)'><span><span class='ident'>i</span></span></span><span class='lexic'>)};</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486065",this)' onmouseleave='srcref_leave("Z486065",this)'><span><span class='ident'>pfun</span></span></span><span class='lexic'>(</span><span class='const'>&quot;&nbsp;&nbsp;&nbsp;&nbsp;}&quot;</span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>}</span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486047",this)' onmouseleave='srcref_leave("Z486047",this)'><span><span class='ident'>nodes</span></span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>iter</span>&nbsp;<span id='Z486088'><span><span class='ident'>i</span></span></span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486086",this)' onmouseleave='srcref_leave("Z486086",this)'><span><span class='ident'>getarrows</span></span></span><span class='lexic'>()</span>&nbsp;<span class='keyword'>do</span>&nbsp;<span class='lexic'>{</span><span class='ident'>print</span><span class='lexic'>(</span><span class='const'>&quot;&nbsp;&nbsp;&nbsp;&nbsp;&quot;</span><span class='lexic'>);</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486065",this)' onmouseleave='srcref_leave("Z486065",this)'><span><span class='ident'>pfun</span></span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486088",this)' onmouseleave='srcref_leave("Z486088",this)'><span><span class='ident'>i</span></span></span><span class='lexic'>)};</span><br>
+&nbsp;&nbsp;&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486065",this)' onmouseleave='srcref_leave("Z486065",this)'><span><span class='ident'>pfun</span></span></span><span class='lexic'>(</span><span class='const'>&quot;}&quot;</span><span class='lexic'>)}</span>
+<p></div>
+
+
+<h2>Embedded driver</h2>
+
+<p>Our main goal is to be able to embed the flowcharts into literate code. For this we'd have to define a syntax
+extension (to be used inside <b>pfout</b> nodes) and a driver that will call Graphviz in background and produce
+an SVG output to be embedded into HTML. Same thing can be done for the TeX output as well.
+
+
+<p><div class='code'>
+<span id='Z486133'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>htmlembed_flow_dsl</span><span class='lexic'>(</span><span id='Z486162'><span><span class='ident'>perc</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z486141'><span><span class='ident'>code</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z486149'><span><span class='ident'>x</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<a href='#Z484781'><span class='ident'>flowlang_insert_points</span></a><span class='lexic'>(</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='#Z484069'><span class='ident'>flowlang_delete_points</span></a><span class='lexic'>(</span><a href='#Z483146'><span class='ident'>compile_flowlang</span></a><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486141",this)' onmouseleave='srcref_leave("Z486141",this)'><span><span class='ident'>code</span></span></span><span class='lexic'>)));</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z486144'><span><span class='ident'>fnm</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;$'${<span class='withhint'><span class='ident'>gensym</span><span class='hint'>function&nbsp;gensym&nbsp;:&nbsp;<br>
+Returns&nbsp;a&nbsp;unique&nbsp;symbol&nbsp;every&nbsp;time&nbsp;it&nbsp;is&nbsp;called.<br>
+Uniqueness&nbsp;is&nbsp;guaranteed&nbsp;within&nbsp;one&nbsp;run&nbsp;only.</span></span><span class='lexic'>()</span>}.dot'<span class='lexic'>;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='withhint'><span class='ident'>%call-with-output-file</span><span class='hint'>function&nbsp;call-with-output-file&nbsp;fn,&nbsp;f:&nbsp;<br>
+Opens&nbsp;an&nbsp;output&nbsp;stream&nbsp;for&nbsp;the&nbsp;file&nbsp;[fn]&nbsp;and&nbsp;passes&nbsp;it&nbsp;as&nbsp;an&nbsp;argument&nbsp;to&nbsp;[f].<br>
+After&nbsp;[f]&nbsp;execution,&nbsp;closes&nbsp;the&nbsp;stream&nbsp;and&nbsp;returns&nbsp;[f]&nbsp;value.</span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486144",this)' onmouseleave='srcref_leave("Z486144",this)'><span><span class='ident'>fnm</span></span></span><span class='lexic'>,</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>&lambda;</span><span class='lexic'>(</span><span id='Z486147'><span><span class='ident'>fo</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><a href='#Z485973'><span class='ident'>display_all</span></a><span class='lexic'>(</span><span class='keyword'>&lambda;</span><span class='lexic'>(</span><span id='Z486148'><span><span class='ident'>str</span></span></span><span class='lexic'>)</span>&nbsp;<span class='withhint'><span class='ident'>fprintln</span><span class='hint'>function&nbsp;fprintln&nbsp;fil,&nbsp;str:&nbsp;<br>
+Writes&nbsp;a&nbsp;string&nbsp;and&nbsp;an&nbsp;endline&nbsp;into&nbsp;[ostream].</span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486147",this)' onmouseleave='srcref_leave("Z486147",this)'><span><span class='ident'>fo</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486148",this)' onmouseleave='srcref_leave("Z486148",this)'><span><span class='ident'>str</span></span></span><span class='lexic'>),</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486149",this)' onmouseleave='srcref_leave("Z486149",this)'><span><span class='ident'>x</span></span></span><span class='lexic'>)}</span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>collector</span><span class='lexic'>(</span><span id='Z486158'><span><span class='ident'>add</span></span></span><span class='lexic'>,</span>&nbsp;<span id='Z486160'><span><span class='ident'>get</span></span></span><span class='lexic'>)</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='ident'>system</span><span class='lexic'>(</span><span class='const'>&quot;dot&quot;</span><span class='lexic'>,</span>&nbsp;$'-Tsvg&nbsp;${<span class='idfrom' onmouseenter='srcref_over("Z486144",this)' onmouseleave='srcref_leave("Z486144",this)'><span><span class='ident'>fnm</span></span></span>}'<span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486158",this)' onmouseleave='srcref_leave("Z486158",this)'><span><span class='ident'>add</span></span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z486163'><span><span class='ident'>out</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>cddddr</span><span class='lexic'>(</span><span class='ident'>cdddr</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486160",this)' onmouseleave='srcref_leave("Z486160",this)'><span><span class='ident'>get</span></span></span><span class='lexic'>()));</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z486165'><span><span class='ident'>out</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;$'&lt;svg&nbsp;width=&quot;${<span class='idfrom' onmouseenter='srcref_over("Z486162",this)' onmouseleave='srcref_leave("Z486162",this)'><span><span class='ident'>perc</span></span></span>}&quot;&nbsp;height=&quot;${<span class='idfrom' onmouseenter='srcref_over("Z486162",this)' onmouseleave='srcref_leave("Z486162",this)'><span><span class='ident'>perc</span></span></span>}&quot;'<span class='lexic'>:</span><span class='idfrom' onmouseenter='srcref_over("Z486163",this)' onmouseleave='srcref_leave("Z486163",this)'><span><span class='ident'>out</span></span></span><span class='lexic'>;</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z486166'><span><span class='ident'>body</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='withhint'><span class='ident'>strinterleave</span><span class='hint'>function&nbsp;strinterleave&nbsp;lst,&nbsp;str:&nbsp;<br>
+Builds&nbsp;a&nbsp;string&nbsp;of&nbsp;lst&nbsp;elements&nbsp;interleaved&nbsp;with&nbsp;str.</span></span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486165",this)' onmouseleave='srcref_leave("Z486165",this)'><span><span class='ident'>out</span></span></span><span class='lexic'>,</span>&nbsp;<span class='const'>&quot;\n&quot;</span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>return</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486166",this)' onmouseleave='srcref_leave("Z486166",this)'><span><span class='ident'>body</span></span></span><span class='lexic'>}}</span>
+<p></div>
+
+
+
+<p><div class='code'>
+<span class='keyword'>syntax</span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='ident'>expr</span><span class='lexic'>,</span>&nbsp;<span class='ident'>start</span>&nbsp;<span class='lexic'>(</span><span class='ident'>pflowlang</span><span class='lexic'>):</span>&nbsp;'&nbsp;<span class='const'><span class='pattern'>&quot;.flowchart&quot;</span></span>&nbsp;<span class='pattern'><span class='const'>&quot;(&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[string]:</span></span><span class='pattern'>perc</span>&nbsp;<span class='pattern'><span class='const'>&quot;)&quot;</span></span>&nbsp;<span class='pattern'><span class='const'>&quot;:&quot;</span></span>&nbsp;<span class='keyword'><span class='pattern'>[flowstmt]:</span></span><span class='pattern'>s</span>&nbsp;'&nbsp;<br>
+<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;<span class='keyword'>return</span>&nbsp;<span class='symbol'>'lisp'</span><span class='lexic'>(</span><span class='symbol'>'quote'</span><span class='lexic'>(</span><a href='#Z486133'><span class='ident'>htmlembed_flow_dsl</span></a><span class='lexic'>(</span><span class='ident'>perc</span><span class='lexic'>,</span>&nbsp;<span class='ident'>s</span><span class='lexic'>)))</span><br>
+<span class='lexic'>}</span>
+<p></div>
+
+
+<h3 id="svgexample">Output example</h3>
+
+<p>Here is the output generated from <a href="#example">our example</a>:<br>
+
+<p>
+
+<svg width="60%" height="60%"
+ viewBox="0.00 0.00 605.00 668.50" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 664.5)">
+<title>G</title>
+<polygon fill="#ffffff" stroke="transparent" points="-4,4 -4,-664.5 601,-664.5 601,4 -4,4"/>
+<g id="clust1" class="cluster">
+<title>cluster_Z486641</title>
+<polygon fill="#ebebeb" stroke="#000000" points="361,-100 361,-210.5 539,-210.5 539,-100 361,-100"/>
+<text text-anchor="middle" x="450" y="-195.3" font-family="Times,serif" font-size="14.00" fill="#000000">Wait</text>
+</g>
+<g id="clust2" class="cluster">
+<title>cluster_Z486642</title>
+<polygon fill="#ebebeb" stroke="#000000" points="8,-218.5 8,-616.5 564,-616.5 564,-218.5 8,-218.5"/>
+<text text-anchor="middle" x="286" y="-601.3" font-family="Times,serif" font-size="14.00" fill="#000000">Main loop</text>
+</g>
+<!-- Z486639 -->
+<g id="node1" class="node">
+<title>Z486639</title>
+<ellipse fill="#000000" stroke="#000000" cx="570" cy="-72" rx="0" ry="0"/>
+</g>
+<!-- Z486632 -->
+<g id="node3" class="node">
+<title>Z486632</title>
+<path fill="none" stroke="#000000" d="M585,-36C585,-36 555,-36 555,-36 549,-36 543,-30 543,-24 543,-24 543,-12 543,-12 543,-6 549,0 555,0 555,0 585,0 585,0 591,0 597,-6 597,-12 597,-12 597,-24 597,-24 597,-30 591,-36 585,-36"/>
+<text text-anchor="middle" x="570" y="-13.8" font-family="Times,serif" font-size="14.00" fill="#000000">END</text>
+</g>
+<!-- Z486639&#45;&gt;Z486632 -->
+<g id="edge3" class="edge">
+<title>Z486639&#45;&gt;Z486632</title>
+<path fill="none" stroke="#000000" d="M570,-71.8451C570,-71.8451 570,-46.2161 570,-46.2161"/>
+<polygon fill="#000000" stroke="#000000" points="573.5001,-46.216 570,-36.2161 566.5001,-46.2161 573.5001,-46.216"/>
+</g>
+<!-- START -->
+<g id="node2" class="node">
+<title>START</title>
+<path fill="none" stroke="#000000" d="M273.391,-660.5C273.391,-660.5 238.609,-660.5 238.609,-660.5 232.609,-660.5 226.609,-654.5 226.609,-648.5 226.609,-648.5 226.609,-636.5 226.609,-636.5 226.609,-630.5 232.609,-624.5 238.609,-624.5 238.609,-624.5 273.391,-624.5 273.391,-624.5 279.391,-624.5 285.391,-630.5 285.391,-636.5 285.391,-636.5 285.391,-648.5 285.391,-648.5 285.391,-654.5 279.391,-660.5 273.391,-660.5"/>
+<text text-anchor="middle" x="256" y="-638.3" font-family="Times,serif" font-size="14.00" fill="#000000">START</text>
+</g>
+<!-- Z486637 -->
+<g id="node6" class="node">
+<title>Z486637</title>
+<ellipse fill="#000000" stroke="#000000" cx="256" cy="-586.5" rx="0" ry="0"/>
+</g>
+<!-- START&#45;&gt;Z486637 -->
+<g id="edge14" class="edge">
+<title>START&#45;&gt;Z486637</title>
+<path fill="none" stroke="#000000" d="M256,-624.473C256,-624.473 256,-596.5625 256,-596.5625"/>
+<polygon fill="#000000" stroke="#000000" points="259.5001,-596.5624 256,-586.5625 252.5001,-596.5625 259.5001,-596.5624"/>
+</g>
+<!-- Z486638 -->
+<g id="node4" class="node">
+<title>Z486638</title>
+<ellipse fill="#000000" stroke="#000000" cx="450" cy="-180.5" rx="0" ry="0"/>
+</g>
+<!-- Z486633 -->
+<g id="node5" class="node">
+<title>Z486633</title>
+<polygon fill="#d3d3d3" stroke="#000000" points="450,-144 368.8708,-126 450,-108 531.1292,-126 450,-144"/>
+<text text-anchor="middle" x="450" y="-121.8" font-family="Times,serif" font-size="14.00" fill="#000000">Key pressed?</text>
+</g>
+<!-- Z486638&#45;&gt;Z486633 -->
+<g id="edge2" class="edge">
+<title>Z486638&#45;&gt;Z486633</title>
+<path fill="none" stroke="#000000" d="M450.1181,-180C452.5321,-180 491.1572,-180 491.1572,-180 491.1572,-180 491.1572,-144.917 491.1572,-144.917"/>
+<polygon fill="#000000" stroke="#000000" points="494.6573,-144.917 491.1572,-134.917 487.6573,-144.917 494.6573,-144.917"/>
+</g>
+<!-- Z486633&#45;&gt;Z486639 -->
+<g id="edge5" class="edge">
+<title>Z486633&#45;&gt;Z486639</title>
+<path fill="none" stroke="#000000" d="M531.3707,-126C552.7716,-126 570,-126 570,-126 570,-126 570,-82.1549 570,-82.1549"/>
+<polygon fill="#000000" stroke="#000000" points="573.5001,-82.1549 570,-72.1549 566.5001,-82.1549 573.5001,-82.1549"/>
+<text text-anchor="middle" x="544.5948" y="-128.8" font-family="Times,serif" font-size="14.00" fill="#000000">YES</text>
+</g>
+<!-- Z486633&#45;&gt;Z486638 -->
+<g id="edge6" class="edge">
+<title>Z486633&#45;&gt;Z486638</title>
+<path fill="none" stroke="#000000" d="M450,-144.1477C450,-144.1477 450,-170.4407 450,-170.4407"/>
+<polygon fill="#000000" stroke="#000000" points="446.5001,-170.4407 450,-180.4407 453.5001,-170.4407 446.5001,-170.4407"/>
+<text text-anchor="middle" x="439.8896" y="-146.9477" font-family="Times,serif" font-size="14.00" fill="#000000">NO</text>
+</g>
+<!-- Z486629 -->
+<g id="node12" class="node">
+<title>Z486629</title>
+<polygon fill="#d3d3d3" stroke="#000000" points="362,-550.5 256.0168,-532.5 362,-514.5 467.9832,-532.5 362,-550.5"/>
+<text text-anchor="middle" x="362" y="-528.3" font-family="Times,serif" font-size="14.00" fill="#000000">More input items?</text>
+</g>
+<!-- Z486637&#45;&gt;Z486629 -->
+<g id="edge1" class="edge">
+<title>Z486637&#45;&gt;Z486629</title>
+<path fill="none" stroke="#000000" d="M256.5042,-586.3451C256.5042,-586.3451 256.5042,-542.6455 256.5042,-542.6455"/>
+<polygon fill="#000000" stroke="#000000" points="260.0043,-542.6454 256.5042,-532.6455 253.0043,-542.6455 260.0043,-542.6454"/>
+</g>
+<!-- Z486631 -->
+<g id="node7" class="node">
+<title>Z486631</title>
+<polygon fill="none" stroke="#000000" points="222.3208,-262.5 57.9605,-262.5 15.6792,-226.5 180.0395,-226.5 222.3208,-262.5"/>
+<text text-anchor="middle" x="119" y="-240.3" font-family="Times,serif" font-size="14.00" fill="#000000">Process the input</text>
+</g>
+<!-- Z486631&#45;&gt;Z486637 -->
+<g id="edge4" class="edge">
+<title>Z486631&#45;&gt;Z486637</title>
+<path fill="none" stroke="#000000" d="M119,-262.8605C119,-333.7936 119,-586 119,-586 119,-586 245.9007,-586 245.9007,-586"/>
+<polygon fill="#000000" stroke="#000000" points="245.9007,-589.5001 255.9007,-586 245.9007,-582.5001 245.9007,-589.5001"/>
+</g>
+<!-- Z486634 -->
+<g id="node8" class="node">
+<title>Z486634</title>
+<polygon fill="none" stroke="#000000" points="555.5097,-262.5 347.898,-262.5 294.4903,-226.5 502.102,-226.5 555.5097,-262.5"/>
+<text text-anchor="middle" x="425" y="-240.3" font-family="Times,serif" font-size="14.00" fill="#000000">Display error message</text>
+</g>
+<!-- Z486634&#45;&gt;Z486638 -->
+<g id="edge7" class="edge">
+<title>Z486634&#45;&gt;Z486638</title>
+<path fill="none" stroke="#000000" d="M450,-226.3314C450,-226.3314 450,-190.5778 450,-190.5778"/>
+<polygon fill="#000000" stroke="#000000" points="453.5001,-190.5777 450,-180.5778 446.5001,-190.5778 453.5001,-190.5777"/>
+</g>
+<!-- Z486630 -->
+<g id="node9" class="node">
+<title>Z486630</title>
+<polygon fill="#d3d3d3" stroke="#000000" points="362,-334.5 281.9103,-316.5 362,-298.5 442.0897,-316.5 362,-334.5"/>
+<text text-anchor="middle" x="362" y="-312.3" font-family="Times,serif" font-size="14.00" fill="#000000">Input is valid</text>
+</g>
+<!-- Z486630&#45;&gt;Z486631 -->
+<g id="edge8" class="edge">
+<title>Z486630&#45;&gt;Z486631</title>
+<path fill="none" stroke="#000000" d="M287.9754,-314.9857C287.9754,-304.5745 287.9754,-244 287.9754,-244 287.9754,-244 211.0128,-244 211.0128,-244"/>
+<polygon fill="#000000" stroke="#000000" points="211.0128,-240.5001 201.0128,-244 211.0128,-247.5001 211.0128,-240.5001"/>
+<text text-anchor="middle" x="274.7513" y="-317.7857" font-family="Times,serif" font-size="14.00" fill="#000000">YES</text>
+</g>
+<!-- Z486630&#45;&gt;Z486634 -->
+<g id="edge9" class="edge">
+<title>Z486630&#45;&gt;Z486634</title>
+<path fill="none" stroke="#000000" d="M368.27,-299.8008C368.27,-299.8008 368.27,-272.6222 368.27,-272.6222"/>
+<polygon fill="#000000" stroke="#000000" points="371.7701,-272.6221 368.27,-262.6222 364.7701,-272.6222 371.7701,-272.6221"/>
+<text text-anchor="middle" x="358.1596" y="-288.6008" font-family="Times,serif" font-size="14.00" fill="#000000">NO</text>
+</g>
+<!-- Z486635 -->
+<g id="node10" class="node">
+<title>Z486635</title>
+<polygon fill="none" stroke="#000000" points="426.2894,-406.5 324.0193,-406.5 297.7106,-370.5 399.9807,-370.5 426.2894,-406.5"/>
+<text text-anchor="middle" x="362" y="-384.3" font-family="Times,serif" font-size="14.00" fill="#000000">Read line</text>
+</g>
+<!-- Z486635&#45;&gt;Z486630 -->
+<g id="edge10" class="edge">
+<title>Z486635&#45;&gt;Z486630</title>
+<path fill="none" stroke="#000000" d="M362,-370.3314C362,-370.3314 362,-344.9133 362,-344.9133"/>
+<polygon fill="#000000" stroke="#000000" points="365.5001,-344.9132 362,-334.9133 358.5001,-344.9133 365.5001,-344.9132"/>
+</g>
+<!-- Z486636 -->
+<g id="node11" class="node">
+<title>Z486636</title>
+<polygon fill="none" stroke="#000000" points="463.0161,-478.5 302.3221,-478.5 260.9839,-442.5 421.6779,-442.5 463.0161,-478.5"/>
+<text text-anchor="middle" x="362" y="-456.3" font-family="Times,serif" font-size="14.00" fill="#000000">Prompt for input</text>
+</g>
+<!-- Z486636&#45;&gt;Z486635 -->
+<g id="edge11" class="edge">
+<title>Z486636&#45;&gt;Z486635</title>
+<path fill="none" stroke="#000000" d="M362,-442.3314C362,-442.3314 362,-416.9133 362,-416.9133"/>
+<polygon fill="#000000" stroke="#000000" points="365.5001,-416.9132 362,-406.9133 358.5001,-416.9133 365.5001,-416.9132"/>
+</g>
+<!-- Z486629&#45;&gt;Z486639 -->
+<g id="edge13" class="edge">
+<title>Z486629&#45;&gt;Z486639</title>
+<path fill="none" stroke="#000000" d="M465.1235,-532C514.2207,-532 562.3773,-532 562.3773,-532 562.3773,-532 562.3773,-72 562.3773,-72 562.3773,-72 563.131,-72 563.131,-72"/>
+<polygon fill="#000000" stroke="#000000" points="559.9144,-75.5001 569.9144,-72 559.9143,-68.5001 559.9144,-75.5001"/>
+<text text-anchor="middle" x="475.2339" y="-534.8" font-family="Times,serif" font-size="14.00" fill="#000000">NO</text>
+</g>
+<!-- Z486629&#45;&gt;Z486636 -->
+<g id="edge12" class="edge">
+<title>Z486629&#45;&gt;Z486636</title>
+<path fill="none" stroke="#000000" d="M362,-514.3314C362,-514.3314 362,-488.9133 362,-488.9133"/>
+<polygon fill="#000000" stroke="#000000" points="365.5001,-488.9132 362,-478.9133 358.5001,-488.9133 365.5001,-488.9132"/>
+<text text-anchor="middle" x="348.7759" y="-503.1314" font-family="Times,serif" font-size="14.00" fill="#000000">YES</text>
+</g>
+</g>
+</svg>
+
+<h3>Embedding example</h3>
+
+<p>And this is an output from an embedded <b>pfout</b> code:
+
+<div>
+<svg width="30%" height="30%"
+ viewBox="0.00 0.00 216.38 368.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 364)">
+<title>G</title>
+<polygon fill="#ffffff" stroke="transparent" points="-4,4 -4,-364 212.381,-364 212.381,4 -4,4"/>
+<!-- Z486647 -->
+<g id="node1" class="node">
+<title>Z486647</title>
+<ellipse fill="#000000" stroke="#000000" cx="116.3887" cy="-216" rx="0" ry="0"/>
+</g>
+<!-- Z486644 -->
+<g id="node4" class="node">
+<title>Z486644</title>
+<polygon fill="#d3d3d3" stroke="#000000" points="41.3887,-180 .111,-162 41.3887,-144 82.6664,-162 41.3887,-180"/>
+<text text-anchor="middle" x="41.3887" y="-157.8" font-family="Times,serif" font-size="14.00" fill="#000000">XXX</text>
+</g>
+<!-- Z486647&#45;&gt;Z486644 -->
+<g id="edge1" class="edge">
+<title>Z486647&#45;&gt;Z486644</title>
+<path fill="none" stroke="#000000" d="M116.3887,-215.8451C116.3887,-212.6777 116.3887,-162 116.3887,-162 116.3887,-162 92.8372,-162 92.8372,-162"/>
+<polygon fill="#000000" stroke="#000000" points="92.8373,-158.5001 82.8372,-162 92.8372,-165.5001 92.8373,-158.5001"/>
+</g>
+<!-- Z486643 -->
+<g id="node2" class="node">
+<title>Z486643</title>
+<polygon fill="none" stroke="#000000" points="69.3734,-108 24.856,-108 13.404,-72 57.9214,-72 69.3734,-108"/>
+<text text-anchor="middle" x="41.3887" y="-85.8" font-family="Times,serif" font-size="14.00" fill="#000000">C</text>
+</g>
+<!-- EXIT -->
+<g id="node7" class="node">
+<title>EXIT</title>
+<path fill="none" stroke="#000000" d="M56.3887,-36C56.3887,-36 26.3887,-36 26.3887,-36 20.3887,-36 14.3887,-30 14.3887,-24 14.3887,-24 14.3887,-12 14.3887,-12 14.3887,-6 20.3887,0 26.3887,0 26.3887,0 56.3887,0 56.3887,0 62.3887,0 68.3887,-6 68.3887,-12 68.3887,-12 68.3887,-24 68.3887,-24 68.3887,-30 62.3887,-36 56.3887,-36"/>
+<text text-anchor="middle" x="41.3887" y="-13.8" font-family="Times,serif" font-size="14.00" fill="#000000">END</text>
+</g>
+<!-- Z486643&#45;&gt;EXIT -->
+<g id="edge2" class="edge">
+<title>Z486643&#45;&gt;EXIT</title>
+<path fill="none" stroke="#000000" d="M41.3887,-71.8314C41.3887,-71.8314 41.3887,-46.4133 41.3887,-46.4133"/>
+<polygon fill="#000000" stroke="#000000" points="44.8888,-46.4132 41.3887,-36.4133 37.8888,-46.4133 44.8888,-46.4132"/>
+</g>
+<!-- Z486645 -->
+<g id="node3" class="node">
+<title>Z486645</title>
+<polygon fill="none" stroke="#000000" points="208.3734,-108 163.856,-108 152.404,-72 196.9214,-72 208.3734,-108"/>
+<text text-anchor="middle" x="180.3887" y="-85.8" font-family="Times,serif" font-size="14.00" fill="#000000">B</text>
+</g>
+<!-- Z486645&#45;&gt;Z486647 -->
+<g id="edge3" class="edge">
+<title>Z486645&#45;&gt;Z486647</title>
+<path fill="none" stroke="#000000" d="M180.3887,-108.0527C180.3887,-142.8929 180.3887,-216 180.3887,-216 180.3887,-216 126.4351,-216 126.4351,-216"/>
+<polygon fill="#000000" stroke="#000000" points="126.4351,-212.5001 116.4351,-216 126.435,-219.5001 126.4351,-212.5001"/>
+</g>
+<!-- Z486644&#45;&gt;Z486643 -->
+<g id="edge5" class="edge">
+<title>Z486644&#45;&gt;Z486643</title>
+<path fill="none" stroke="#000000" d="M41.3887,-143.8314C41.3887,-143.8314 41.3887,-118.4133 41.3887,-118.4133"/>
+<polygon fill="#000000" stroke="#000000" points="44.8888,-118.4132 41.3887,-108.4133 37.8888,-118.4133 44.8888,-118.4132"/>
+<text text-anchor="middle" x="31.2783" y="-132.6314" font-family="Times,serif" font-size="14.00" fill="#000000">NO</text>
+</g>
+<!-- Z486644&#45;&gt;Z486645 -->
+<g id="edge4" class="edge">
+<title>Z486644&#45;&gt;Z486645</title>
+<path fill="none" stroke="#000000" d="M76.0792,-158.9063C76.0792,-145.125 76.0792,-90 76.0792,-90 76.0792,-90 148.0117,-90 148.0117,-90"/>
+<polygon fill="#000000" stroke="#000000" points="148.0117,-93.5001 158.0117,-90 148.0117,-86.5001 148.0117,-93.5001"/>
+<text text-anchor="middle" x="89.3033" y="-161.7063" font-family="Times,serif" font-size="14.00" fill="#000000">YES</text>
+</g>
+<!-- Z486646 -->
+<g id="node5" class="node">
+<title>Z486646</title>
+<polygon fill="none" stroke="#000000" points="144.3734,-288 99.856,-288 88.404,-252 132.9214,-252 144.3734,-288"/>
+<text text-anchor="middle" x="116.3887" y="-265.8" font-family="Times,serif" font-size="14.00" fill="#000000">A</text>
+</g>
+<!-- Z486646&#45;&gt;Z486647 -->
+<g id="edge6" class="edge">
+<title>Z486646&#45;&gt;Z486647</title>
+<path fill="none" stroke="#000000" d="M116.3887,-251.7181C116.3887,-251.7181 116.3887,-226.058 116.3887,-226.058"/>
+<polygon fill="#000000" stroke="#000000" points="119.8888,-226.058 116.3887,-216.058 112.8888,-226.058 119.8888,-226.058"/>
+</g>
+<!-- START -->
+<g id="node6" class="node">
+<title>START</title>
+<path fill="none" stroke="#000000" d="M133.7796,-360C133.7796,-360 98.9977,-360 98.9977,-360 92.9977,-360 86.9977,-354 86.9977,-348 86.9977,-348 86.9977,-336 86.9977,-336 86.9977,-330 92.9977,-324 98.9977,-324 98.9977,-324 133.7796,-324 133.7796,-324 139.7796,-324 145.7796,-330 145.7796,-336 145.7796,-336 145.7796,-348 145.7796,-348 145.7796,-354 139.7796,-360 133.7796,-360"/>
+<text text-anchor="middle" x="116.3887" y="-337.8" font-family="Times,serif" font-size="14.00" fill="#000000">START</text>
+</g>
+<!-- START&#45;&gt;Z486646 -->
+<g id="edge7" class="edge">
+<title>START&#45;&gt;Z486646</title>
+<path fill="none" stroke="#000000" d="M116.3887,-323.8314C116.3887,-323.8314 116.3887,-298.4133 116.3887,-298.4133"/>
+<polygon fill="#000000" stroke="#000000" points="119.8888,-298.4132 116.3887,-288.4133 112.8888,-298.4133 119.8888,-298.4132"/>
+</g>
+</g>
+</svg>
+</div>
+
+<p>The code was:
+
+<p><div class='code'>
+<span class='lexic'>.flowchart(</span><span class='const'>&quot;30%&quot;</span><span class='lexic'>):</span>&nbsp;<span class='keyword'>begin</span>&nbsp;A<span class='lexic'>;</span>&nbsp;<span class='keyword'>while</span>&nbsp;<span class='lexic'>(</span>XXX<span class='lexic'>)</span>&nbsp;<span class='keyword'>do</span>&nbsp;B<span class='lexic'>;</span>&nbsp;C&nbsp;<span class='keyword'>end</span>
+<p></div>
+
+
+<h2>Standalone driver</h2>
+
+<p>To recap, the compilation pipeline is:
+
+<p>
+<svg width="20%" height="20%"
+ viewBox="0.00 0.00 309.15 476.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1 1) rotate(0) translate(4 472)">
+<title>G</title>
+<polygon fill="#ffffff" stroke="transparent" points="-4,4 -4,-472 305.1549,-472 305.1549,4 -4,4"/>
+<!-- Z486655 -->
+<g id="node1" class="node">
+<title>Z486655</title>
+<polygon fill="none" stroke="#000000" points="301.2325,-108 61.5741,-108 -.0775,-72 239.5809,-72 301.2325,-108"/>
+<text text-anchor="middle" x="150.5775" y="-85.8" font-family="Times,serif" font-size="14.00" fill="#000000">For all entries: display_all</text>
+</g>
+<!-- EXIT -->
+<g id="node7" class="node">
+<title>EXIT</title>
+<path fill="none" stroke="#000000" d="M165.5775,-36C165.5775,-36 135.5775,-36 135.5775,-36 129.5775,-36 123.5775,-30 123.5775,-24 123.5775,-24 123.5775,-12 123.5775,-12 123.5775,-6 129.5775,0 135.5775,0 135.5775,0 165.5775,0 165.5775,0 171.5775,0 177.5775,-6 177.5775,-12 177.5775,-12 177.5775,-24 177.5775,-24 177.5775,-30 171.5775,-36 165.5775,-36"/>
+<text text-anchor="middle" x="150.5775" y="-13.8" font-family="Times,serif" font-size="14.00" fill="#000000">END</text>
+</g>
+<!-- Z486655&#45;&gt;EXIT -->
+<g id="edge1" class="edge">
+<title>Z486655&#45;&gt;EXIT</title>
+<path fill="none" stroke="#000000" d="M150.5775,-71.8314C150.5775,-71.8314 150.5775,-46.4133 150.5775,-46.4133"/>
+<polygon fill="#000000" stroke="#000000" points="154.0776,-46.4132 150.5775,-36.4133 147.0776,-46.4133 154.0776,-46.4132"/>
+</g>
+<!-- Z486656 -->
+<g id="node2" class="node">
+<title>Z486656</title>
+<polygon fill="none" stroke="#000000" points="284.4243,-180 71.504,-180 16.7307,-144 229.651,-144 284.4243,-180"/>
+<text text-anchor="middle" x="150.5775" y="-157.8" font-family="Times,serif" font-size="14.00" fill="#000000">flowlang_insert_points</text>
+</g>
+<!-- Z486656&#45;&gt;Z486655 -->
+<g id="edge2" class="edge">
+<title>Z486656&#45;&gt;Z486655</title>
+<path fill="none" stroke="#000000" d="M150.5775,-143.8314C150.5775,-143.8314 150.5775,-118.4133 150.5775,-118.4133"/>
+<polygon fill="#000000" stroke="#000000" points="154.0776,-118.4132 150.5775,-108.4133 147.0776,-118.4133 154.0776,-118.4132"/>
+</g>
+<!-- Z486657 -->
+<g id="node3" class="node">
+<title>Z486657</title>
+<polygon fill="none" stroke="#000000" points="286.2168,-252 70.445,-252 14.9381,-216 230.71,-216 286.2168,-252"/>
+<text text-anchor="middle" x="150.5775" y="-229.8" font-family="Times,serif" font-size="14.00" fill="#000000">flowlang_delete_points</text>
+</g>
+<!-- Z486657&#45;&gt;Z486656 -->
+<g id="edge3" class="edge">
+<title>Z486657&#45;&gt;Z486656</title>
+<path fill="none" stroke="#000000" d="M150.5775,-215.8314C150.5775,-215.8314 150.5775,-190.4133 150.5775,-190.4133"/>
+<polygon fill="#000000" stroke="#000000" points="154.0776,-190.4132 150.5775,-180.4133 147.0776,-190.4133 154.0776,-190.4132"/>
+</g>
+<!-- Z486658 -->
+<g id="node4" class="node">
+<title>Z486658</title>
+<polygon fill="none" stroke="#000000" points="258.9774,-324 86.5374,-324 42.1775,-288 214.6176,-288 258.9774,-324"/>
+<text text-anchor="middle" x="150.5775" y="-301.8" font-family="Times,serif" font-size="14.00" fill="#000000">compile_flowlang</text>
+</g>
+<!-- Z486658&#45;&gt;Z486657 -->
+<g id="edge4" class="edge">
+<title>Z486658&#45;&gt;Z486657</title>
+<path fill="none" stroke="#000000" d="M150.5775,-287.8314C150.5775,-287.8314 150.5775,-262.4133 150.5775,-262.4133"/>
+<polygon fill="#000000" stroke="#000000" points="154.0776,-262.4132 150.5775,-252.4133 147.0776,-262.4133 154.0776,-262.4132"/>
+</g>
+<!-- Z486659 -->
+<g id="node5" class="node">
+<title>Z486659</title>
+<polygon fill="none" stroke="#000000" points="261.7264,-396 84.9133,-396 39.4286,-360 216.2416,-360 261.7264,-396"/>
+<text text-anchor="middle" x="150.5775" y="-373.8" font-family="Times,serif" font-size="14.00" fill="#000000">parse as pflowlang</text>
+</g>
+<!-- Z486659&#45;&gt;Z486658 -->
+<g id="edge5" class="edge">
+<title>Z486659&#45;&gt;Z486658</title>
+<path fill="none" stroke="#000000" d="M150.5775,-359.8314C150.5775,-359.8314 150.5775,-334.4133 150.5775,-334.4133"/>
+<polygon fill="#000000" stroke="#000000" points="154.0776,-334.4132 150.5775,-324.4133 147.0776,-334.4133 154.0776,-334.4132"/>
+</g>
+<!-- START -->
+<g id="node6" class="node">
+<title>START</title>
+<path fill="none" stroke="#000000" d="M167.9684,-468C167.9684,-468 133.1865,-468 133.1865,-468 127.1865,-468 121.1865,-462 121.1865,-456 121.1865,-456 121.1865,-444 121.1865,-444 121.1865,-438 127.1865,-432 133.1865,-432 133.1865,-432 167.9684,-432 167.9684,-432 173.9684,-432 179.9684,-438 179.9684,-444 179.9684,-444 179.9684,-456 179.9684,-456 179.9684,-462 173.9684,-468 167.9684,-468"/>
+<text text-anchor="middle" x="150.5775" y="-445.8" font-family="Times,serif" font-size="14.00" fill="#000000">START</text>
+</g>
+<!-- START&#45;&gt;Z486659 -->
+<g id="edge6" class="edge">
+<title>START&#45;&gt;Z486659</title>
+<path fill="none" stroke="#000000" d="M150.5775,-431.8314C150.5775,-431.8314 150.5775,-406.4133 150.5775,-406.4133"/>
+<polygon fill="#000000" stroke="#000000" points="154.0776,-406.4132 150.5775,-396.4133 147.0776,-406.4133 154.0776,-406.4132"/>
+</g>
+</g>
+</svg>
+
+<p>We may also want to use this flowchart compiler standalone. This is the
+<b>main</b> function to be used:
+
+
+<p><div class='code'>
+<span id='Z486661'><span class='keyword'>f</span></span><span class='keyword'>unction</span>&nbsp;<span class='ident'>fc_main</span><span class='lexic'>()</span><br>
+<span class='lexic'>{</span><br>
+&nbsp;&nbsp;<span class='keyword'>match</span>&nbsp;<span class='withhint'><span class='ident'>%a-&gt;l</span><span class='hint'>function&nbsp;a-&gt;l&nbsp;ar:&nbsp;<br>
+Converts&nbsp;an&nbsp;array&nbsp;into&nbsp;a&nbsp;list.</span></span><span class='lexic'>(</span>&nbsp;<span class='ident'>%*CMDLINE*</span>&nbsp;<span class='lexic'>)</span>&nbsp;<span class='keyword'>with</span><br>
+&nbsp;&nbsp;&nbsp;<span class='lexic'><span class='pattern'>[</span></span><span id='Z486684'><span><span class='ident'><span class='pattern'>fname</span></span></span></span><span class='lexic'><span class='pattern'>]</span></span>&nbsp;&#8594;&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z486686'><span><span class='ident'>strm</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>%peg:file-&gt;stream</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486684",this)' onmouseleave='srcref_leave("Z486684",this)'><span><span class='ident'>fname</span></span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z486693'><span><span class='ident'>res</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<span class='ident'>%peg:easyparse3</span><span class='lexic'>(</span><span class='ident'>%peg:makeenv</span><span class='lexic'>(),</span>&nbsp;<span class='ident'>peg_pflowlang</span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486686",this)' onmouseleave='srcref_leave("Z486686",this)'><span><span class='ident'>strm</span></span></span><span class='lexic'>);</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>match</span>&nbsp;<span class='ident'>car</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486693",this)' onmouseleave='srcref_leave("Z486693",this)'><span><span class='ident'>res</span></span></span><span class='lexic'>)</span>&nbsp;<span class='keyword'>with</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='symbol'><span class='pattern'>'FAIL:'</span></span><span class='lexic'><span class='pattern'>(@</span></span><span class='ident'><span class='pattern'>x</span></span><span class='lexic'><span class='pattern'>)</span></span>&nbsp;&#8594;&nbsp;<span class='ident'>%pfront-report-syntax-error</span><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486686",this)' onmouseleave='srcref_leave("Z486686",this)'><span><span class='ident'>strm</span></span></span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486693",this)' onmouseleave='srcref_leave("Z486693",this)'><span><span class='ident'>res</span></span></span><span class='lexic'>)</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span id='Z486696'><span><span class='ident'><span class='pattern'>code</span></span></span></span>&nbsp;&#8594;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class='keyword'>iter</span>&nbsp;<span id='Z486699'><span><span class='ident'>i</span></span></span>&nbsp;<span class='keyword'>in</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486696",this)' onmouseleave='srcref_leave("Z486696",this)'><span><span class='ident'>code</span></span></span>&nbsp;<span class='keyword'>do</span>&nbsp;<span class='lexic'>{</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span id='Z486700'><span><span class='ident'>x</span></span></span>&nbsp;<span class='lexic'>=</span>&nbsp;<a href='#Z484781'><span class='ident'>flowlang_insert_points</span></a><span class='lexic'>(</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='#Z484069'><span class='ident'>flowlang_delete_points</span></a><span class='lexic'>(</span><a href='#Z483146'><span class='ident'>compile_flowlang</span></a><span class='lexic'>(</span><span class='idfrom' onmouseenter='srcref_over("Z486699",this)' onmouseleave='srcref_leave("Z486699",this)'><span><span class='ident'>i</span></span></span><span class='lexic'>)));</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='#Z485973'><span class='ident'>display_all</span></a><span class='lexic'>(</span><span class='ident'>println</span><span class='lexic'>,</span>&nbsp;<span class='idfrom' onmouseenter='srcref_over("Z486700",this)' onmouseleave='srcref_leave("Z486700",this)'><span><span class='ident'>x</span></span></span><span class='lexic'>)}}</span><br>
+&nbsp;&nbsp;&nbsp;<span class='lexic'>|</span>&nbsp;<span class='ident'><span class='pattern'>else</span></span>&nbsp;&#8594;&nbsp;<span class='ident'>println</span><span class='lexic'>(</span><span class='const'>&quot;Usage:&nbsp;flowchart.exe&nbsp;&lt;filename&gt;&quot;</span><span class='lexic'>)</span><br>
+<span class='lexic'>}</span>
+<p></div>
+
+
+
+<div class='none'>
+  <span id='dummy_to'><span id='too'>&nbsp;</span></span>
+  <span id='dummy_from'><span id='frm'>&nbsp;</span></span>
+</div>
+
+
+
+    <svg class='svgarrows'>
+      <defs>
+        <marker id="m1" markerWidth="8" markerHeight="8" refx="5" refy="5">
+          <circle cx="5" cy="5" r="1.5"></circle>
+        </marker>
+        <marker id="m2" 
+                markerWidth="5" markerHeight="5" viewBox="-6 -6 12 12" 
+                refX="-2" refY="0" 
+                markerUnits="strokeWidth" 
+                orient="auto">
+          <polygon points="-2,0 -5,5 5,0 -5,-5" fill="grey" stroke="black" stroke-width="1px"/>
+        </marker>
+      </defs>
+      <g data-source="frm" data-target="too">
+        <line marker-start="url(#m1)" marker-end="url(#m2)"></line>
+      </g>
+    </svg>
+    
+</div>
+
+
+</body>
+
+</html>
+
+
+
+
+
+
